@@ -81,20 +81,20 @@ ALTERED PHASES :-
 # Project Plan: PPTX Templater Web App
 
 ## Phase 0: Project Setup & Version Control (Day 1-2)
-[ ] Initialize Local Git Repository:
-    [ ] In the project folder, run `git init`.
-[ ] Create Remote Repository:
-    [ ] Create a new, empty repository on GitHub/GitLab.
-    [ ] Connect local to remote: `git remote add origin <your-remote-url.git>`.
-[ ] Create `.gitignore` File:
-    [ ] Create a root `.gitignore` file.
-    [ ] Add entries for `venv/`, `__pycache__/`, `node_modules/`, `build/`, `.db`, `*.sqlite3`, `.vscode/`, etc.
-[ ] Establish Branching Strategy:
-    [ ] Create and switch to a `develop` branch: `git checkout -b develop`.
-    [ ] Make `develop` the primary working branch.
-[ ] Initial Commit:
-    [ ] Stage and commit the initial project structure: `git commit -m "Initial commit: project setup and .gitignore"`.
-    [ ] Push to the remote: `git push -u origin develop`.
+[x] Initialize Local Git Repository:
+    [x] In the project folder, run `git init`.
+[x] Create Remote Repository:
+    [x] Create a new, empty repository on GitHub/GitLab.
+    [x] Connect local to remote: `git remote add origin <your-remote-url.git>`.
+[x] Create `.gitignore` File:
+    [x] Create a root `.gitignore` file.
+    [x] Add entries for `venv/`, `__pycache__/`, `node_modules/`, `build/`, `.db`, `*.sqlite3`, `.vscode/`, etc.
+[x] Establish Branching Strategy:
+    [x] Create and switch to a `develop` branch: `git checkout -b develop`.
+    [x] Make `develop` the primary working branch.
+[x] Initial Commit:
+    [x] Stage and commit the initial project structure: `git commit -m "Initial commit: project setup and .gitignore"`.
+    [x] Push to the remote: `git push -u origin develop`.
 
 ## Phase 1: Backend Engine & Cloud Integration (1.5 - 2 Weeks)
 # Git Action: Create feature branch -> `git checkout -b feature/backend-cloud-setup develop`
