@@ -1,0 +1,43 @@
+cat > documentation_checklist.md << 'EOF'
+# 📜 Project Documentation Checklist
+
+## 1. Core Project Files
+
+- [ ] **README.md**: Is it present and complete?
+  - [ ] Project Title and one-sentence description.
+  - [ ] List of technologies used (Tech Stack).
+  - [ ] Clear, step-by-step setup and installation instructions.
+  - [ ] Instructions on how to run the project locally.
+  - [ ] Example usage or basic API endpoint examples.
+
+- [ ] **LICENSE**: Is an appropriate license file included (e.g., MIT, GPL)?
+
+- [ ] **CHANGELOG.md**: Is there a log of recent changes and version history?
+
+- [ ] **CONTRIBUTING.md**: Are there guidelines for potential contributors?
+
+## 2. Code-Level Documentation
+
+- [ ] **Function/Method Headers**: Do all major functions have comment blocks explaining their purpose, parameters, and what they return?
+
+- [ ] **Inline Comments**: Is complex, tricky, or non-obvious code explained with inline comments?
+
+- [ ] **Configuration Files**: Are settings in `.env`, `config.yaml`, or other config files explained?
+
+## 3. API & User Documentation
+
+- [ ] **API Endpoints**: Are all API routes documented?
+  - [ ] Expected request format (body, params).
+  - [ ] Possible response formats (success, error).
+  - [ ] Authentication requirements (if any).
+
+- [ ] **User Guide**: Is there a simple guide for end-users explaining how to use the application's features?
+
+## 4. Final Review
+
+- [ ] **Proofread**: Have all documents been checked for spelling and grammar errors?
+- [ ] **Clarity**: Is the documentation clear for someone new to the project?
+- [ ] **Test Instructions**: Have you personally tested the setup and run instructions from scratch to ensure they work?
+EOF
+
+echo "✅ Checklist created: documentation_checklist.md"

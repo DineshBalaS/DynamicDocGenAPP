@@ -1,0 +1,65 @@
+# =============================================================================
+# Python / Flask Backend
+# =============================================================================
+
+# Ignore the virtual environment directory. This is the most important rule.
+venv/
+
+# Ignore Python bytecode, cache, and compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore environment variable files (they contain secrets)
+.env
+.env.*
+
+# Ignore the Flask instance folder (contains non-tracked configs/DBs)
+instance/
+
+
+# =============================================================================
+# Node.js / React Frontend
+# =============================================================================
+
+# Ignore the massive node_modules dependency folder
+node_modules/
+
+# Ignore build outputs
+build/
+dist/
+
+# Ignore log files
+npm-debug.log*
+yarn-error.log*
+yarn.lock
+
+# Yarn 2+ PnP files
+.pnp
+.pnp.js
+
+
+# =============================================================================
+# IDE & Operating System Files
+# =============================================================================
+
+# VS Code
+.vscode/
+
+# PyCharm
+.idea/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+
+# =============================================================================
+# Project-specific Ignores
+# =============================================================================
+
+# Ignore the file you generated to show the project tree
+tree.txt
