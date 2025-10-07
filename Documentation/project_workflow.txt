@@ -250,3 +250,85 @@ Download from S3: It uses boto3 to download the template .pptx file from S3 into
 Generate PPT: It uses the python-pptx-templater library to create a new presentation in-memory by replacing the placeholders in the template with the user-provided values.
 
 Send File Response: It sends the newly generated .pptx file back to the frontend as a file stream, with the correct headers to trigger a browser download.
+
+
+#UI design for uploading a new template#
+
+## Page 1: Landing Page / Empty Dashboard
+This is the first screen a new user sees. The goal is to be welcoming and immediately guide them to the primary action.
+
+Layout & Feel:
+Clean, minimalist, and centered. Lots of white space to draw attention to the main call-to-action.
+
+Components:
+
+Top Navigation Bar: A simple bar at the top with your app's logo on the left.
+
+Central Content Block:
+
+Icon: A large, friendly icon of a cloud with an upward arrow or a document stack. This visually communicates the purpose of the page.
+
+Main Heading: Large, bold text saying, "You don't have any templates yet."
+
+Subheading: A slightly smaller, helpful text below it: "Upload your first PowerPoint template to get started."
+
+Primary Action Button: A prominent, large button with a clear label like "+ Upload Template". This is the main focal point of the page.
+
+User Interaction:
+The user's only real option is to click the "Upload Template" button, which will open their computer's file selection dialog.
+
+## Page 2: Verify Placeholders
+After the user selects a file, it's sent to the backend. This page displays the results and allows for corrections, acting as a crucial verification step.
+
+Layout & Feel:
+Structured and task-oriented. A stepper component at the top helps the user understand where they are in the process.
+
+Components:
+
+Stepper/Progress Bar: A visual indicator at the top showing the steps:
+Step 1: Upload > Step 2: Verify > Step 3: Save
+
+Page Title: A clear heading like "Review Your Placeholders".
+
+Instructional Text: A small line of text: "We found the following placeholders in your file. Please add any that we may have missed."
+
+Auto-Detected Placeholders List:
+
+This isn't a simple text list. The placeholders are displayed as tags or "pills" inside a container box.
+
+Each tag (e.g., {{client_name}}) has a small "x" icon on it, allowing the user to remove a placeholder if it was detected by mistake.
+
+Manual Add Section:
+
+A simple text input field with a label: "Add missing placeholder".
+
+An "Add" button next to the input field. When the user types a name and clicks "Add," the new placeholder instantly appears as a tag in the list above. This provides immediate visual feedback.
+
+Action Button: A single, clear button at the bottom right: "Confirm & Continue →".
+
+## Page 3: Final Preview and Actions
+This is the final confirmation step before the template is saved or used. It gives the user a last chance to review everything and decide on the next action.
+
+Layout & Feel:
+Clean and decisive. The focus is on the final list and the choice of actions.
+
+Components:
+
+Stepper/Progress Bar: The stepper is updated:
+Step 1: Upload > Step 2: Verify > Step 3: Save
+
+Page Title: A clear heading like "Save Your Template".
+
+Template Name Input: A crucial component. A required text input field with the label "Template Name". The user must name their template here (e.g., "Monthly Business Review").
+
+Final Placeholder List:
+
+The confirmed list of placeholders is displayed again, but this time they are read-only (no "x" to delete). This reinforces that this is a final preview.
+
+Action Buttons: A group of buttons at the bottom right, styled differently based on their priority:
+
+Save Template: The primary action. A solid, filled button. Clicking this saves the template and redirects the user to the main dashboard.
+
+Generate Now: A secondary action. A button with an outline but no fill. This takes the user directly to the data entry form for this template.
+
+← Edit: A less prominent action. A simple text link or a plain gray button, positioned to the left of the other two. This takes the user back to the previous "Verify Placeholders" page.
