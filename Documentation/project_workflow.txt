@@ -438,3 +438,103 @@ Clean, summary-oriented, and decisive. It is not a form but a read-only summary,
 
     * **Generate Presentation:** The primary action. A solid, filled, and prominent button. Clicking this sends the data to the backend, generates the PPT, and likely initiates a download or redirects to a success page.
     * **← Back to Form:** A secondary action. A button with an outline or a simple text link. This takes the user back to the entire form on Page 2 for more significant edits.
+
+## Pre-Development Checklist for Dockerized Deployment
+Here is a professional checklist to ensure your backend is ready for both local development and eventual deployment on Render using Docker.
+
+Document Date: October 8, 2025
+
+### Configuration & Environment 🔑
+[ ] Isolate All Secrets: Ensure no secrets (passwords, API keys) are hardcoded. All configuration must be loaded from environment variables.
+
+[ ] Create .env.example file: Create a template file in your repository that lists all required environment variables without their values.
+
+
+[ ] Update .gitignore: Make sure the actual .env file containing your local secrets is listed in your .gitignore file.
+
+### Dockerization 🐳
+[ ] Create a Dockerfile: Add a Dockerfile to your backend directory. This file should:
+
+Start from an official Python base image (e.g., python:3.11-slim).
+
+Copy your requirements.txt file and install dependencies.
+
+Copy the rest of your application code.
+
+Expose the necessary port (e.g., EXPOSE 8000).
+
+Use a production WSGI server like Gunicorn in the final CMD instruction to run the app.
+
+[ ] Create a .dockerignore file: Add a .dockerignore file to your backend directory to exclude unnecessary files like .env, venv/, and __pycache__/ from the Docker image build context. This keeps your image small and secure.
+
+### Application & Database Logic ⚙️
+[ ] Maintain requirements.txt: Keep the dependency file perfectly up-to-date. The Docker build will fail if this is inaccurate.
+
+[ ] Use DATABASE_URL: The database connection must be configured to use a single DATABASE_URL environment variable. Render provides this automatically for its managed databases.
+
+[ ] Ensure Statelessness: Confirm that your application does not save any persistent files to the local filesystem. All file storage must be handled by S3 , and all metadata by PostgreSQL, as planned.
+
+
+
+
+[ ] Configure CORS: Set up Flask-CORS to accept requests from your frontend's production URL. This URL should itself be loaded from an environment variable to allow for easy switching between localhost (development) and your live domain (production).
+
+
+DB creation Info - > ```docker run --name pptx-postgres -e POSTGRES_PASSWORD=WBM@23*3ppt -p 5432:5432 -d postgres```
+
+postgres log - > ```docker run --name pptx-postgres -e POSTGRES_PASSWORD=WBM@23*3ppt -p 5432:5432 -d postgres
+Unable to find image 'postgres:latest' locally
+latest: Pulling from library/postgres
+af60ce4418c9: Pulling fs layer
+203b16f56a7d: Pulling fs layer                                                                             
+dd6d7b9d8ba8: Pulling fs layer                                                                             
+f69a7c424b50: Pulling fs layer                                                                             
+a585c5f82f15: Pulling fs layer                                                                             
+af60ce4418c9: Pull complete
+9a68d6020eab: Pull complete
+8c7716127147: Pull complete 
+f0d70120d9e2: Pull complete
+edd90ab5059f: Pull complete
+f5af7533693a: Pull complete
+1014e14b3351: Pull complete
+2433c366ca00: Pull complete
+eed0ac863490: Pull complete
+Digest: sha256:073e7c8b84e2197f94c8083634640ab37105effe1bc853ca4d5fbece3219b0e8
+Status: Downloaded newer image for postgres:latest
+56960cd85e6000432e1298c9e766da26bed2b986bb88f9b71b4362a6e05bc85e
+PS C:\Users\Dinesh> docker exec -it pptx-postgres psql -U postgres
+psql (18.0 (Debian 18.0-1.pgdg13+3))
+Type "help" for help.
+
+postgres=# CREATE DATABASE pptx_templater_db;
+CREATE DATABASE
+postgres=# ^C
+postgres=# \q
+PS C:\Users\Dinesh>``` 
+
+## Backend Progress Checklist
+### Done ✅
+[x] Set up the core Flask application structure (main.py, config.py, app/__init__.py).
+
+[x] Configured the project to use environment variables (.env, .env.example).
+
+[x] Secured the CORS policy to only allow requests from the frontend URL.
+
+[x] Installed and ran a PostgreSQL database locally using Docker.
+
+[x] Created the pptx_templater_db database.
+
+[x] Wrote and successfully ran the db_setup.py script to create the templates table.
+
+### Next Steps 🔜
+[x] Create the API blueprint structure to organize all endpoints.
+
+[x] Implement the GET /api/templates endpoint.
+
+
+[ ] Separate business logic into service files (s3_service.py, pptx_service.py). 
+
+[ ] Implement the remaining POST and DELETE endpoints (/upload, /save_template, /generate, /templates/<id>).
+
+
+[ ] Test each endpoint thoroughly using an API client like Postman or Thunder Client.
