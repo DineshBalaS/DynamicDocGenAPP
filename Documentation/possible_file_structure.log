@@ -1,0 +1,51 @@
+pptx-templater-app/
+├── .gitignore               # Specifies files and folders for Git to ignore
+├── README.md                # Project documentation and setup instructions
+│
+├── backend/                 # The Flask API backend
+│   ├── app/                 # The main application package
+│   │   ├── __init__.py      # Initializes the Flask app and extensions (e.g., Flask-CORS)
+│   │   │
+│   │   ├── api/             # Blueprint for all API routes
+│   │   │   ├── __init__.py  # Blueprint initialization
+│   │   │   └── routes.py    # Defines all endpoints (/upload, /templates, /generate, etc.)
+│   │   │
+│   │   ├── services/        # For business logic separated from routes
+│   │   │   ├── s3_service.py   # Handles all interactions with AWS S3 (upload, delete, download)
+│   │   │   └── pptx_service.py # Logic for parsing placeholders from .pptx files
+│   │   │
+│   │   └── database/
+│   │       └── db_setup.py     # Script to create the PostgreSQL tables
+│   │
+│   ├── venv/                # The Python virtual environment (ignored by Git)
+│   ├── config.py            # Configuration settings (loads secrets from environment variables)
+│   ├── main.py              # Entry point to run the Flask application
+│   └── requirements.txt     # List of Python dependencies (Flask, boto3, etc.)
+│
+└── frontend/                # The React frontend application
+    ├── node_modules/        # Frontend dependencies (ignored by Git)
+    ├── public/              # Static assets
+    │   ├── index.html       # The main HTML template for the React app
+    │   └── ...
+    │
+    ├── src/                 # Main React application source code
+    │   ├── api/             # Functions that handle all API calls to the backend
+    │   │   └── templateService.js # e.g., getTemplates(), generatePresentation()
+    │   │
+    │   ├── components/      # Reusable, general-purpose components
+    │   │   ├── Spinner.js     # Loading indicator component
+    │   │   └── ErrorMessage.js# Component to display errors
+    │   │
+    │   ├── pages/           # Components that represent a full page or view
+    │   │   ├── Dashboard.js
+    │   │   ├── UploadPage.js
+    │   │   ├── PlaceholderReviewPage.js
+    │   │   ├── DataEntryForm.js
+    │   │   └── FinalReviewPage.js
+    │   │
+    │   ├── App.js           # Main component, handles routing between pages
+    │   ├── index.js         # Entry point for the React app
+    │   └── index.css        # Global styles
+    │
+    ├── package.json         # Lists frontend dependencies and scripts (React, axios, etc.)
+    └── tailwind.config.js   # Configuration for Tailwind CSS (if used)

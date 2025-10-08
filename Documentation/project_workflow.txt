@@ -1,0 +1,440 @@
+## Phase 1: Building the Backend Engine (1 - 1.5 Weeks)
+We will build and test the entire backend API without a single line of frontend code. We will use tools like Postman or the VS Code Thunder Client extension to pretend we are a frontend sending requests.
+
+[ ] Set up the Flask Project:
+
+    [ ] Create a project folder.
+
+    [ ] Create a Python virtual environment inside it. This is critical for managing project dependencies.
+
+    [ ] Install Flask and python-pptx-templater: pip install Flask python-pptx-templater.
+
+[ ] Build the Database Logic:
+
+    [ ] Write a Python script that uses SQLite to create your templates database file and the table structure we discussed previously.
+
+[ ] Create the API Endpoints (The "Routes"):
+
+    [ ] POST /api/upload: Write the Flask code to handle a file upload. For now, just make it save the file to a folder named uploads.
+
+    [ ] Placeholder Parsing: Add the logic to the upload endpoint to unzip the PPTX file in memory, use regex to find all {{placeholders}}, and return this list as JSON.
+
+    [ ] POST /api/save_template: Create the endpoint that takes a template name and placeholder list, saves the file permanently, and adds a record to your SQLite database.
+
+    [ ] GET /api/templates: Create the endpoint that queries your SQLite database and returns a list of all saved templates.
+
+    [ ] POST /api/generate: The main endpoint. It receives placeholder values (as JSON) and an ID for the template to use. It will then fetch the template's info from the database, use python-pptx-templater to generate the final PPT, and send it back as a file download.
+
+
+## Phase 2: Building the Frontend Interface (1 Week)
+Now we build the user interface. We will not connect it to the backend yet. We will use fake, hardcoded data to make it look like it's working.
+
+[ ] Set up the React Project:
+
+    [ ] In your terminal, run npx create-react-app frontend to create a new React application.
+
+[ ] Build the Static Components:
+
+    [ ] Dashboard.js: Create a component that displays a hardcoded list of templates.
+
+    [ ] UploadPage.js: Create the component with a file input and an upload button.
+
+    [ ] PlaceholderReviewPage.js: A component that displays a fake list of placeholders (e.g., ['name', 'date']) and has a form to add a new one.
+
+    [ ] DataEntryForm.js: A component that takes a list of placeholders and dynamically creates a form with an input for each one.
+
+    [ ] FinalReviewPage.js: A component that shows the user their final inputs before generating the presentation.
+
+
+## Phase 3: Integration (Connecting Frontend & Backend) (1 Week)
+This is where it all comes together.
+
+[ ] Enable CORS in Flask: You will immediately run into a CORS error. Install and configure the Flask-CORS library. This is a security feature that you need to enable so your backend (on one port) can talk to your frontend (on another port).
+
+[ ] Connect React to the API:
+
+    [ ] In your Dashboard.js component, replace the fake data with a fetch or axios call to your GET /api/templates backend endpoint to get the real list of templates.
+
+    [ ] Make the upload form in UploadPage.js actually send the file to your POST /api/upload endpoint.
+
+    [ ] Connect all the other components to their corresponding backend endpoints. The data entry form will send its data to /api/generate.
+
+[ ] Handle State and Navigation:
+
+    [ ] Use React's state management (useState, useEffect) to store data as the user moves through the steps.
+
+    [ ] Use a library like React Router to navigate between the different pages/components of your app.
+
+
+## Phase 4: Final Touches and Polish (3-4 Days)
+[ ] Styling: Use a CSS framework like Tailwind CSS or Material-UI to make your application look professional.
+
+[ ] Error Handling: What happens if a file upload fails? What if the backend server is down? Add user-friendly error messages.
+
+[ ] Loading Spinners: Show loading indicators while the frontend is waiting for a response from the backend (especially during file upload and generation).
+
+[ ] Documentation: Write the README.md file explaining what your project is and how to run it.
+
+
+ALTERED PHASES :- 
+
+# Project Plan: PPTX Templater Web App
+
+## Phase 0: Project Setup & Version Control (Day 1-2)
+[x] Initialize Local Git Repository:
+    [x] In the project folder, run `git init`.
+[x] Create Remote Repository:
+    [x] Create a new, empty repository on GitHub/GitLab.
+    [x] Connect local to remote: `git remote add origin <your-remote-url.git>`.
+[x] Create `.gitignore` File:
+    [x] Create a root `.gitignore` file.
+    [x] Add entries for `venv/`, `__pycache__/`, `node_modules/`, `build/`, `.db`, `*.sqlite3`, `.vscode/`, etc.
+[x] Establish Branching Strategy:
+    [x] Create and switch to a `develop` branch: `git checkout -b develop`.
+    [x] Make `develop` the primary working branch.
+[x] Initial Commit:
+    [x] Stage and commit the initial project structure: `git commit -m "Initial commit: project setup and .gitignore"`.
+    [x] Push to the remote: `git push -u origin develop`.
+
+## Phase 1: Backend Engine & Cloud Integration (1.5 - 2 Weeks)
+# Git Action: Create feature branch -> `git checkout -b feature/backend-cloud-setup develop`
+
+[x] Cloud Services Setup:
+    [x] Create an AWS account and an S3 bucket for file storage.
+    [x] Create an IAM user with programmatic access to the S3 bucket and save the Access Key & Secret Key.
+[ ] Set up the Flask Project:
+    [ ] Create a project folder and a Python virtual environment.
+    [ ] Install dependencies: `pip install Flask python-pptx-templater boto3 psycopg2-binary Flask-Cors`.
+    [ ] Add all dependencies to a `requirements.txt` file.
+[ ] Build the Database Logic (PostgreSQL):
+    [ ] Design the database schema for PostgreSQL.
+    [ ] The `templates` table should include columns for `id`, `name`, `s3_url`, `s3_key`, and `placeholders` (as JSON/text).
+    [ ] Consider adding a `placeholder_type` column for future enhancements (like images).
+    [ ] Write a script to connect to the database and create the table.
+[ ] Create the API Endpoints (Routes):
+    [ ] `POST /api/upload`: Handles initial file upload, uses regex to parse `{{placeholders}}`, and returns the list as JSON. Does NOT save the file permanently.
+    [ ] `POST /api/save_template`: Receives the file, template name, and placeholder list.
+        [ ] Uploads the template PPTX file to the AWS S3 bucket using boto3.
+        [ ] Saves the template's metadata (name, S3 URL, S3 key, placeholders) to the PostgreSQL database.
+    [ ] `GET /api/templates`: Queries the PostgreSQL database and returns a JSON list of all saved templates.
+    [ ] `DELETE /api/templates/<template_id>`:
+        [ ] Fetches the template's `s3_key` from the database.
+        [ ] Deletes the file from the AWS S3 bucket using boto3.
+        [ ] Deletes the template's record from the PostgreSQL database.
+    [ ] `POST /api/generate`: Receives placeholder values and a template ID.
+        [ ] Fetches the template's `s3_key` from the database.
+        [ ] Downloads the corresponding PPTX file from S3 into memory.
+        [ ] Uses `python-pptx-templater` to generate the final presentation.
+        [ ] Sends the generated presentation back as a file download.
+# Git Action: Commit and merge feature branch back into `develop`.
+
+## Phase 2: Building the Frontend Interface (Static) (1 Week)
+# Git Action: Create feature branch -> `git checkout -b feature/frontend-static-ui develop`
+
+[ ] Set up the React Project:
+    [ ] Run `npx create-react-app frontend`.
+[ ] Build the Static Components (using hardcoded/fake data):
+    [ ] `Dashboard.js`: Displays a fake list of templates, each with a 'Delete' button.
+    [ ] `UploadPage.js`: Component with a file input and upload button.
+    [ ] `PlaceholderReviewPage.js`: Displays a fake list of placeholders found in an uploaded template.
+    [ ] `DataEntryForm.js`: Dynamically creates a form with an input for each placeholder from a fake list.
+    [ ] `FinalReviewPage.js`: Shows the user their final inputs before generation.
+# Git Action: Commit and merge feature branch back into `develop`.
+
+## Phase 3: Integration (Connecting Frontend & Backend) (1 Week)
+# Git Action: Create feature branch -> `git checkout -b feature/full-integration develop`
+
+[ ] Enable CORS in Flask:
+    [ ] Configure the `Flask-CORS` library to allow requests from your React frontend's origin.
+[ ] Connect React to the API:
+    [ ] Use `fetch` or `axios` for all API calls.
+    [ ] `Dashboard.js`: Call `GET /api/templates` to display the real list of templates. Connect the delete button to `DELETE /api/templates/<id>`.
+    [ ] `UploadPage.js`: Send the file to `POST /api/upload` and handle the returned placeholder list.
+    [ ] `DataEntryForm.js`: Send the final user data and template ID to `POST /api/generate` and handle the file download response.
+[ ] Handle State and Navigation:
+    [ ] Use React's `useState`, `useEffect` to manage application state (e.g., current file, placeholders, user data).
+    [ ] Use a library like `React Router` to navigate between the different pages/components.
+# Git Action: Commit and merge feature branch back into `develop`.
+
+## Phase 4: Final Touches, Polish & Deployment (3-5 Days)
+# Git Action: Create feature branch -> `git checkout -b feature/polish-and-deploy develop`
+
+[ ] Styling:
+    [ ] Use a CSS framework (e.g., Tailwind CSS, Material-UI) to style the application.
+[ ] User Experience:
+    [ ] Add user-friendly error handling and messages (e.g., "Upload failed, please try again.").
+    [ ] Show loading spinners during API calls (file upload, template generation).
+[ ] Deployment to Render:
+    [ ] Set up a production PostgreSQL database on Render.
+    [ ] In the Render dashboard, configure all necessary environment variables: `DATABASE_URL`, `S3_BUCKET_NAME`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`.
+    [ ] Deploy the Flask backend and React frontend as separate services on Render.
+[ ] Documentation:
+    [ ] Write the `README.md` file explaining the project, setup, and how to run it locally.
+# Git Action: Merge to `develop`, then merge `develop` into `main` for the release version. Create a git tag (e.g., `git tag v1.0.0`).
+
+
+Step 1: Finalizing and Saving the Template 💾
+You are on the "Placeholder Review" page. You've just added the missing placeholders and are ready to save this as a new, reusable template.
+
+Frontend (React)
+Gather Data: Your browser collects three key pieces of information:
+
+The original .pptx file, which it has kept in its state since the initial upload.
+
+The final, complete list of placeholders (original + manually added).
+
+The "Template Name" that you just typed in.
+
+API Request: It makes a POST request to your backend's **/api/save_template** endpoint. Because this request contains a file and text, it's sent as multipart/form-data.
+
+Handle Response: The backend responds with the new template's unique ID. The frontend saves this ID and the placeholder list in its state and navigates you to the "Add Details" page.
+
+Backend (Flask)
+Receive Request: The server gets the file, name, and placeholder list.
+
+Store File: It uses boto3 to upload the original .pptx file to your Amazon S3 bucket. This is the moment the file is permanently stored for future use.
+
+Store Metadata: It saves the template's metadata—the user-provided name, the S3 file location, and the final list of placeholders—into your PostgreSQL database, assigning it a new ID.
+
+Send Response: It sends a success message back to the frontend, including the template_id.
+
+Step 2: Entering Placeholder Values 📝
+You are now on the "Add Details" page, where a form is dynamically generated based on the placeholders.
+
+Frontend (React)
+Render Form: The DataEntryForm.js component uses the list of placeholders received from the previous step to render a form with an input field for each placeholder (e.g., a text box for {{name}}, a date picker for {{date}}).
+
+Update State: As you type values into the form, React saves this data in its component state (useState). For example: { name: 'Project Alpha', date: '2025-10-06' }.
+
+Navigate: When you click the "Preview" button, the app navigates to the preview page, passing the data you just entered.
+
+Backend (Flask)
+Idle. The backend does nothing during this step. This entire process happens locally in the user's browser.
+
+Step 3: Previewing the Details ✅
+You are now on the final review page, seeing a summary of your inputs before the final generation.
+
+Frontend (React)
+Display Data: The FinalReviewPage.js component receives the data from the previous step and displays it in a clean, readable list (e.g., "Name: Project Alpha", "Date: 2025-10-06").
+
+Wait for Action: The page presents a final "Generate Presentation" button.
+
+Backend (Flask)
+Idle. The backend is still waiting for the final command.
+
+Step 4: Generating and Downloading the Presentation 🚀
+You've reviewed the details and click the final "Generate Presentation" button.
+
+Frontend (React)
+API Request: It makes a POST request to the backend's **/api/generate** endpoint. It sends a JSON payload containing the template_id and the object of placeholder values.
+
+Show Loading: It displays a loading spinner to indicate that the presentation is being generated.
+
+Handle File Download: The backend's response will not be JSON; it will be the actual file data (a blob). The frontend code is written to handle this by:
+
+Creating a temporary URL for the blob.
+
+Creating a hidden link element (<a>) pointing to that URL.
+
+Programmatically "clicking" the link to trigger the browser's download prompt.
+
+Hiding the loading spinner.
+
+Backend (Flask)
+Receive Request: The server gets the template_id and the placeholder values.
+
+Fetch Metadata: It queries the PostgreSQL database using the template_id to find the location of the original template file on S3 (the s3_key).
+
+Download from S3: It uses boto3 to download the template .pptx file from S3 into the server's memory.
+
+Generate PPT: It uses the python-pptx-templater library to create a new presentation in-memory by replacing the placeholders in the template with the user-provided values.
+
+Send File Response: It sends the newly generated .pptx file back to the frontend as a file stream, with the correct headers to trigger a browser download.
+
+
+#UI design for uploading a new template#
+
+## Page 1: Landing Page / Empty Dashboard
+This is the first screen a new user sees. The goal is to be welcoming and immediately guide them to the primary action.
+
+Layout & Feel:
+Clean, minimalist, and centered. Lots of white space to draw attention to the main call-to-action.
+
+Components:
+
+Top Navigation Bar: A simple bar at the top with your app's logo on the left.
+
+Central Content Block:
+
+Icon: A large, friendly icon of a cloud with an upward arrow or a document stack. This visually communicates the purpose of the page.
+
+Main Heading: Large, bold text saying, "You don't have any templates yet."
+
+Subheading: A slightly smaller, helpful text below it: "Upload your first PowerPoint template to get started."
+
+Primary Action Button: A prominent, large button with a clear label like "+ Upload Template". This is the main focal point of the page.
+
+User Interaction:
+The user's only real option is to click the "Upload Template" button, which will open their computer's file selection dialog.
+
+## Page 2: Verify Placeholders
+After the user selects a file, it's sent to the backend. This page displays the results and allows for corrections, acting as a crucial verification step.
+
+Layout & Feel:
+Structured and task-oriented. A stepper component at the top helps the user understand where they are in the process.
+
+Components:
+
+Stepper/Progress Bar: A visual indicator at the top showing the steps:
+Step 1: Upload > Step 2: Verify > Step 3: Save
+
+Page Title: A clear heading like "Review Your Placeholders".
+
+Instructional Text: A small line of text: "We found the following placeholders in your file. Please add any that we may have missed."
+
+Auto-Detected Placeholders List:
+
+This isn't a simple text list. The placeholders are displayed as tags or "pills" inside a container box.
+
+Each tag (e.g., {{client_name}}) has a small "x" icon on it, allowing the user to remove a placeholder if it was detected by mistake.
+
+Manual Add Section:
+
+A simple text input field with a label: "Add missing placeholder".
+
+An "Add" button next to the input field. When the user types a name and clicks "Add," the new placeholder instantly appears as a tag in the list above. This provides immediate visual feedback.
+
+Action Button: A single, clear button at the bottom right: "Confirm & Continue →".
+
+## Page 3: Final Preview and Actions
+This is the final confirmation step before the template is saved or used. It gives the user a last chance to review everything and decide on the next action.
+
+Layout & Feel:
+Clean and decisive. The focus is on the final list and the choice of actions.
+
+Components:
+
+Stepper/Progress Bar: The stepper is updated:
+Step 1: Upload > Step 2: Verify > Step 3: Save
+
+Page Title: A clear heading like "Save Your Template".
+
+Template Name Input: A crucial component. A required text input field with the label "Template Name". The user must name their template here (e.g., "Monthly Business Review").
+
+Final Placeholder List:
+
+The confirmed list of placeholders is displayed again, but this time they are read-only (no "x" to delete). This reinforces that this is a final preview.
+
+Action Buttons: A group of buttons at the bottom right, styled differently based on their priority:
+
+Save Template: The primary action. A solid, filled button. Clicking this saves the template and redirects the user to the main dashboard.
+
+Generate Now: A secondary action. A button with an outline but no fill. This takes the user directly to the data entry form for this template.
+
+← Edit: A less prominent action. A simple text link or a plain gray button, positioned to the left of the other two. This takes the user back to the previous "Verify Placeholders" page.
+
+
+
+
+
+Of course. Here is a UI design for the specified workflow, following your requested format.
+
+***
+
+# UI design for Generating a Presentation from a Template #
+
+## Page 1: Template Dashboard
+This is the main dashboard where a user lands when they already have one or more templates saved. The goal is to provide a clear overview and easy access to either use an existing template or add a new one.
+
+**Layout & Feel:**
+Organized, visual, and efficient. A grid layout for the templates makes it easy to scan. The overall feel is a professional hub or library.
+
+**Components:**
+
+* **Top Navigation Bar:**
+    * A clean bar with your app's logo on the left.
+    * A user profile icon/menu on the far right.
+
+* **Page Header Block:**
+    * **Main Heading:** "Your Templates" in large, bold text.
+    * **Primary Action Button:** A prominent, solid button labeled **"+ Upload New Template"** positioned at the top right of the content area, aligned with the heading.
+
+* **Template Grid:**
+    * A responsive grid of square tiles, each representing a single PowerPoint template.
+    * **Each Tile Contains:**
+        * **Thumbnail Preview (Top 80% of tile):** A small, auto-generated image of the template's title slide. This provides immediate visual recognition.
+        * **Template Name (Bottom 20% of tile):** The name of the template (e.g., "Monthly Business Review") in clear, readable text against a solid background overlay at the bottom of the tile.
+        * **Hover-State Actions:** When a user hovers over a tile, a semi-transparent dark overlay appears with two centered buttons:
+            * A primary **"Use Template"** button.
+            * A secondary "kebab" menu (three vertical dots) in the top-right corner of the tile for additional actions like "Edit Placeholders," "Rename," or "Delete."
+
+**User Interaction:**
+* Clicking anywhere on a tile (or the "Use Template" button) navigates the user to Page 2 (Data Entry Form) for that specific template.
+* Clicking the "+ Upload New Template" button initiates the separate UI flow for uploading a new file.
+* Clicking the kebab menu on a tile opens a small dropdown with the secondary actions.
+
+---
+
+## Page 2: Dynamic Data Entry Form
+After selecting a template, the user is brought here to fill in the data for the placeholders. The form is generated dynamically based on the types of placeholders saved for that template.
+
+**Layout & Feel:**
+Structured, intuitive, and task-focused. A clean, single-column vertical form that guides the user from top to bottom.
+
+**Components:**
+
+* **Breadcrumb Navigation:** A small text navigation at the top left shows the user's path: `Your Templates > Monthly Business Review > Fill Details`. This helps with orientation.
+
+* **Page Title:** A clear heading, such as "Complete Your 'Monthly Business Review'".
+
+* **Instructional Text:** A brief, helpful sentence: "Please provide the content for each placeholder below."
+
+* **Dynamically Generated Form Fields:**
+    A series of form elements, each corresponding to a placeholder. The UI element is chosen based on the placeholder type.
+
+    * **For Text/Character Placeholders (`{{client_name}}`):**
+        * **Label:** "Client Name"
+        * **Component:** A standard text input field with a placeholder example (e.g., "Acme Corporation").
+
+    * **For List/Bullet Point Placeholders (`{{project_updates}}`):**
+        * **Label:** "Project Updates"
+        * **Component:** A "Dynamic List" input. It starts with one text input field. Below it is an **"+ Add Update"** button. Clicking it adds another text input field, allowing the user to add as many bullet points as they need. Each item has a small trash icon to remove it.
+
+    * **For Image Placeholders (`{{company_logo}}`):**
+        * **Label:** "Company Logo"
+        * **Component:** A file upload box with a dashed border and an icon (e.g., image icon). Text inside says "Drag & drop an image or click to browse." Once an image is uploaded, the box displays a thumbnail preview with options to "Replace" or "Remove" the image.
+
+    * **For Radio/Choice Placeholders (`{{project_status}}`):**
+        * **Label:** "Project Status"
+        * **Component:** A set of radio buttons (e.g., ● On Track ○ At Risk ○ Delayed). The available options would have been defined when the template was first configured.
+
+* **Action Button:**
+    * A single, prominent button at the bottom right of the form: **"Next: Preview →"**. This button may be disabled until all required fields are filled.
+
+---
+
+## Page 3: Preview & Generate
+This final screen allows the user to review all their entered data before generating the final presentation. It's a crucial confirmation step to prevent errors.
+
+**Layout & Feel:**
+Clean, summary-oriented, and decisive. It is not a form but a read-only summary, emphasizing review over data entry.
+
+**Components:**
+
+* **Breadcrumb Navigation:** The path is updated: `Your Templates > Monthly Business Review > Fill Details > Preview & Generate`.
+
+* **Page Title:** "Review Your Entries".
+
+* **Data Summary List:**
+    * A clean, two-column layout presenting the data for easy scanning.
+    * The left column contains the placeholder labels (e.g., "Client Name," "Company Logo").
+    * The right column contains the values the user entered.
+    * **Edit Functionality:** Beside each item in the right column, there is a small, subtle **"Edit"** link or pencil icon.
+        * For text values, clicking "Edit" could convert the text into an inline input field for a quick change.
+        * For the image, clicking "Edit" would take the user back to Page 2, scrolled to the image upload component.
+
+* **Action Buttons:**
+    A group of buttons aligned to the bottom right:
+
+    * **Generate Presentation:** The primary action. A solid, filled, and prominent button. Clicking this sends the data to the backend, generates the PPT, and likely initiates a download or redirects to a success page.
+    * **← Back to Form:** A secondary action. A button with an outline or a simple text link. This takes the user back to the entire form on Page 2 for more significant edits.

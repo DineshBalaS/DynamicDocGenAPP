@@ -1,0 +1,61 @@
+Of course. Here is my understanding of the five API endpoints that form the core of your Flask backend.
+
+---
+
+### ## 1. `POST /api/upload`
+This is the **initial analysis** endpoint. [cite_start]Its only job is to inspect a PowerPoint file without saving it permanently[cite: 59, 60].
+
+* [cite_start]**Purpose:** To receive a `.pptx` file, parse it to find all potential `{{placeholders}}`, and send that list back to the user for review[cite: 59].
+* [cite_start]**Input:** A `.pptx` file sent from the frontend[cite: 59].
+* [cite_start]**Process:** The backend receives the file and uses a library or regular expressions to find all placeholder tags within it[cite: 59].
+* [cite_start]**Output:** A **JSON array** containing the list of placeholder strings found in the file (e.g., `["client_name", "project_title", "date"]`)[cite: 59].
+
+---
+
+### ## 2. `POST /api/save_template`
+This is the **template creation** endpoint. [cite_start]It's called after the user has reviewed the placeholders and given the template a name[cite: 95, 96, 99].
+
+* [cite_start]**Purpose:** To permanently store the template file in the cloud and save its metadata in the database[cite: 61, 62].
+* [cite_start]**Input:** A `multipart/form-data` request containing the original `.pptx` file, a **template name**, and the final, confirmed **list of placeholders**[cite: 61, 97, 98, 100].
+* **Process:**
+    1.  [cite_start]Uploads the `.pptx` file to your **AWS S3 bucket** using `boto3`[cite: 62, 104].
+    2.  [cite_start]Saves the template's metadata—including its name, S3 URL, S3 key, and placeholder list—as a new record in the **PostgreSQL database**[cite: 62, 106].
+* [cite_start]**Output:** A success message that includes the **unique ID** of the newly created template[cite: 101, 107].
+
+---
+
+### ## 3. `GET /api/templates`
+This is the **dashboard** endpoint, used to retrieve all available templates for the user to see.
+
+* [cite_start]**Purpose:** To fetch a list of all templates that have been saved in the database[cite: 63].
+* **Input:** None.
+* [cite_start]**Process:** It queries the PostgreSQL database to get all records from the `templates` table[cite: 63].
+* [cite_start]**Output:** A **JSON array** where each object represents a saved template, containing its ID, name, S3 URL, etc.[cite: 63].
+
+---
+
+### ## 4. `DELETE /api/templates/<template_id>`
+This is the **cleanup** endpoint for removing a template.
+
+* [cite_start]**Purpose:** To completely delete a template, which involves removing both its file from cloud storage and its record from the database[cite: 64, 66, 67].
+* [cite_start]**Input:** The **ID** of the template to be deleted, passed as part of the URL path[cite: 64].
+* **Process:**
+    1.  [cite_start]Fetches the template's record from the database to get its `s3_key`[cite: 65].
+    2.  [cite_start]Uses `boto3` to delete the file from the **AWS S3 bucket**[cite: 66].
+    3.  [cite_start]Deletes the template's record from the **PostgreSQL database**[cite: 67].
+* **Output:** A success or failure confirmation message.
+
+---
+
+### ## 5. `POST /api/generate`
+This is the **core functional endpoint** of the entire application, responsible for creating the final product.
+
+* [cite_start]**Purpose:** To take user data, apply it to a specific template, and generate a new, populated `.pptx` file[cite: 68, 69].
+* [cite_start]**Input:** A **JSON object** containing the `template_id` to use and another object with the placeholder values (e.g., `{ "client_name": "Acme Corp", "date": "2025-10-07" }`)[cite: 68, 118].
+* **Process:**
+    1.  [cite_start]Queries the database with the `template_id` to find the template's `s3_key`[cite: 68, 124].
+    2.  [cite_start]Downloads the corresponding `.pptx` file **from S3 into memory**[cite: 69, 125].
+    3.  [cite_start]Uses the `python-pptx-templater` library to replace the placeholders with the user-provided data in memory[cite: 69, 126].
+* [cite_start]**Output:** The newly generated `.pptx` file, sent back to the client **as a file download**[cite: 69, 127].
+
+
