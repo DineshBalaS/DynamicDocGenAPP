@@ -1,34 +1,3 @@
-# from flask import Flask
-# from flask_cors import CORS
-# from config import Config
-
-# def create_app(config_class=Config):
-#     """
-#     Creates and configures a Flask application instance.
-#     """
-#     app = Flask(__name__)
-#     app.config.from_object(config_class)
-    
-#     #secure cors
-#     frontend_url = app.config.get('FRONTEND_URL')
-#     if frontend_url:
-#         CORS(app, resources={r"/api/*": {"origins": frontend_url}})
-
-#     # --- Register Blueprints ---
-#     # Import the blueprint object first
-#     from .api import api_bp
-#     # Now import the routes module, which will register routes on the blueprint
-#     from .api import routes
-    
-#     # Register the completed blueprint with the app
-#     app.register_blueprint(api_bp, url_prefix='/api')
-
-#     @app.route('/health')
-#     def health_check():
-#         return "OK", 200
-
-#     return app
-
 import os
 import psycopg2
 from flask import Flask, g
