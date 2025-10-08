@@ -532,7 +532,7 @@ PS C:\Users\Dinesh>```
 [x] Implement the GET /api/templates endpoint.
 
 
-[ ] Separate business logic into service files (s3_service.py, pptx_service.py). 
+[x] Separate business logic into service files (s3_service.py, pptx_service.py). 
 
 [ ] Implement the remaining POST and DELETE endpoints (/upload, /save_template, /generate, /templates/<id>).
 
