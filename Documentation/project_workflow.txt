@@ -538,3 +538,87 @@ PS C:\Users\Dinesh>```
 
 
 [ ] Test each endpoint thoroughly using an API client like Postman or Thunder Client.
+
+## 1. Explaining the Business Logic
+The next item on our checklist is to separate the business logic into service files. For our upcoming POST /api/upload endpoint, the main "business logic" is the task of finding placeholders in a PowerPoint file. We'll put this logic into a dedicated service file.
+
+What we will be doing:
+We'll create a file named app/services/pptx_service.py. Inside this file, we will write a Python function called extract_placeholders.
+
+How it will work:
+
+Input: This function will accept the uploaded .pptx file as its input.
+
+Process: A .pptx file is a collection of XML documents. The text is scattered across slides, shapes, tables, and notes. Our function will use the python-pptx library to programmatically:
+
+Open the presentation.
+
+Loop through every slide.
+
+On each slide, loop through every shape (like text boxes, tables, etc.).
+
+Scan the text within each shape for patterns that look like {{...}} using a regular expression (regex).
+
+Output: The function will gather all the unique placeholder names it finds and return them as a simple list of strings (e.g., ["client_name", "project_date"]).
+
+This keeps our routes.py file clean and focused only on handling the web request, while the complex work happens in the service file.
+
+
+Gemini Prompt for efficient output - > "You are an expert Python developer specializing in Flask backends, file processing, and clean architecture.
+
+Your task is to generate the code for the next phase of a "PPTX Templater" web application. This involves creating a service for business logic and implementing a new API endpoint that uses it.
+
+---
+### **Project Context**
+
+The backend is a Flask application with the following structure and key files:
+
+1.  **`Backend/app/__init__.py`**: Contains the `create_app` factory, which also manages the database connection lifecycle (`get_db`, `close_db`).
+2.  **`Backend/app/api/routes.py`**: Contains the API routes. It already has a `GET /templates` endpoint.
+3.  **`Backend/app/api/__init__.py`**: Defines the `api_bp = Blueprint('api', __name__)`.
+
+The goal is to strictly separate business logic (in service files) from web logic (in route files).
+
+---
+### **Your Task**
+
+Generate the complete Python code for two files:
+1.  A new service file: `Backend/app/services/pptx_service.py`
+2.  The updated API file: `Backend/app/api/routes.py`
+
+---
+### **1. Requirements for `app/services/pptx_service.py`**
+
+This file must contain a single function, `extract_placeholders`, with the following specifications:
+* **Function Signature:** It must be `def extract_placeholders(file_stream):`.
+* **Core Logic:**
+    * It must use the `python-pptx` library to open the presentation from the `file_stream`.
+    * It must iterate through all slides and all shapes on each slide that can contain text. For now, it only needs to check standard shapes with text frames; it does **not** need to search inside tables, charts, or speaker notes.
+* **Placeholder Parsing:**
+    * It must use a **single regular expression** to find all placeholders.
+    * The regex must handle two formats: `{{name}}` and `{{type:name}}`.
+    * The `name` and `type` will only contain alphanumeric characters and underscores (`\w+`).
+    * If a placeholder is in the simple `{{name}}` format, its `type` must default to `"text"`.
+* **Output:**
+    * The function must return a **list of unique dictionaries**.
+    * Each dictionary must have two keys: `"name"` and `"type"`. Example: `[{"name": "client_name", "type": "text"}, {"name": "company_logo", "type": "image"}]`.
+    * The list must be unique. If `{{image:logo}}` appears twice, it should only be in the final list once.
+* **Dependencies:** This file should only import standard Python libraries and `pptx`. It must **not** import anything from `flask`.
+
+---
+### **2. Requirements for `app/api/routes.py`**
+
+This file should be updated to include the new `POST /api/upload` endpoint.
+* **Endpoint:** `POST /api/upload` on the existing `api_bp` blueprint.
+* **Functionality:**
+    * It must handle a file upload sent as `multipart/form-data`. Assume the file is sent with the key `"file"`.
+    * **Validation:**
+        * Check if a file is present in the request. If not, return a JSON error `{"error": "No file part in the request"}` with a `400` status code.
+        * Check if the file has a filename. If not, return a JSON error `{"error": "No selected file"}` with a `400` status code.
+        * Check if the filename ends with `.pptx`. If not, return a JSON error `{"error": "Invalid file type. Please upload a .pptx file."}` with a `400` status code.
+    * **Service Integration:** It must import and call the `extract_placeholders` function from `app.services.pptx_service`.
+    * **Response:** On success, it must return the list of placeholder dictionaries as a JSON response with a `200 OK` status code.
+* **Error Handling:** The call to the service function must be wrapped in a `try...except` block. If any exception occurs during parsing (e.g., from a corrupt file), it should return a generic JSON error `{"error": "Failed to process the presentation file."}` with a `500` status code.
+* **Existing Code:** The new endpoint should be added to the existing `routes.py` file, which already contains the `get_templates` endpoint.
+
+Please provide the complete, final code for both files."
