@@ -685,3 +685,49 @@ JSON
 }
 
 ALL TESTS PASSED
+
+## Testing the Soft-Delete Feature
+### Test 1: Check the Initial State
+First, let's make sure you have a template in the database to delete.
+
+Action: Using Thunder Client, send a GET request to http://127.0.0.1:5000/api/templates.
+
+Expected Result: You should see a JSON array containing at least one template (e.g., the "Monthly Business Review" template you created earlier). This confirms you have a template ready to be "deleted."
+
+### Test 2: Perform the Soft Delete (The "Happy Case")
+Now, we'll perform the delete operation.
+
+Action: Send a DELETE request to http://127.0.0.1:5000/api/templates/1 (or the ID of your template).
+
+Expected Result: You should receive a 200 OK status with the success message:
+
+JSON
+
+{
+    "message": "Template moved to trash. Files are permanently deleted after 30 days."
+}
+### Test 3: Verify the Template is Hidden
+This is the most important test. We need to check if the "deleted" template is now hidden from the main list.
+
+Action: Send another GET request to http://127.0.0.1:5000/api/templates.
+
+Expected Result: The response should now be an empty JSON array []. This proves that your updated query with WHERE deleted_at IS NULL is working correctly.
+
+### Test 4: Verify the Database Record Still Exists
+Finally, let's look directly at the database to confirm the record was marked as deleted, not permanently removed.
+
+Action: In your terminal, connect to your PostgreSQL container:
+
+Bash
+
+docker exec -it pptx-postgres psql -U postgres -d pptx_templater_db
+Action: Once you are inside the psql prompt (postgres=#), run this command to inspect the table:
+
+SQL
+
+SELECT id, name, deleted_at FROM templates;
+Expected Result: You will see the row for your template, but the deleted_at column will now contain a timestamp, proving that the record was "soft-deleted" instead of being erased.
+
+If all these tests pass, your soft-delete implementation is correct and working as intended.
+
+ALL TESTS PASSED
