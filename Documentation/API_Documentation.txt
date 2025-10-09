@@ -49,6 +49,8 @@ This is the **cleanup** endpoint for removing a template.
     3.  [cite_start]Deletes the template's record from the **PostgreSQL database**[cite: 67].
 * **Output:** A success or failure confirmation message.
 
+TESTS PASSED
+
 ---
 
 ### ## 5. `POST /api/generate`

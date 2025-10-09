@@ -42,7 +42,7 @@ def get_templates():
         db = get_db()
         cur = db.cursor()
         
-        cur.execute("SELECT id, name, created_at FROM templates ORDER BY created_at DESC;")
+        cur.execute("SELECT id, name, created_at FROM templates WHERE deleted_at IS NULL ORDER BY created_at DESC;")
         
         columns = [desc[0] for desc in cur.description]
         templates = [dict(zip(columns, row)) for row in cur.fetchall()]
@@ -166,8 +166,8 @@ def delete_template(template_id):
             s3 = get_s3()
             s3.move_file_to_trash(s3_key)
 
-            # Step 4: Delete DB Record
-            cur.execute("DELETE FROM templates WHERE id = %s", (template_id,))
+            # Step 4: update the timestamp in the database
+            cur.execute("UPDATE templates SET deleted_at = CURRENT_TIMESTAMP WHERE id = %s", (template_id,))
             
             # Step 5: Commit Transaction
             db.commit()
