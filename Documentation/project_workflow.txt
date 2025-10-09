@@ -622,3 +622,66 @@ This file should be updated to include the new `POST /api/upload` endpoint.
 * **Existing Code:** The new endpoint should be added to the existing `routes.py` file, which already contains the `get_templates` endpoint.
 
 Please provide the complete, final code for both files."
+
+api/save_template testing :- 
+
+### Test Case 1: Successful Save (The "Happy Path")
+Action: With the request configured exactly as above, click Send.
+
+Expected Result:
+
+Response: You should get a 201 Created status. The response body will be a JSON object with the details of your newly created template, including its id.
+
+JSON
+
+{
+    "id": 1,
+    "name": "Monthly Business Review",
+    "created_at": "...",
+    "placeholders": [
+        {"name": "client_name", "type": "text"}, 
+        {"name": "company_logo", "type": "image"}
+    ]
+}
+Verify in S3: Go to your AWS S3 bucket. You should see a new .pptx file with a unique UUID name.
+
+Verify in Database: Run your GET /api/templates endpoint again. You should now see your new template in the list.
+
+### Test Case 2: Duplicate Name Error
+Action: Without changing anything, click Send a second time.
+
+Expected Result:
+
+Response: You should immediately get a 409 Conflict status with the error message:
+
+JSON
+
+{
+    "error": "A template with this name already exists."
+}
+### Test Case 3: Validation Error (Missing Field)
+Action: In Thunder Client, uncheck the box for the templateName field to disable it. Click Send.
+
+Expected Result:
+
+Response: You should get a 400 Bad Request status with the error message:
+
+JSON
+
+{
+    "error": "Missing file, templateName, or placeholders in the request"
+}
+### Test Case 4: Validation Error (Invalid File Type)
+Action: Re-enable the templateName field. For the file field, select a different file that is not a .pptx (e.g., sample.txt). Click Send.
+
+Expected Result:
+
+Response: You should get a 400 Bad Request status with the error message:
+
+JSON
+
+{
+    "error": "Invalid file type. Please upload a .pptx file."
+}
+
+ALL TESTS PASSED

@@ -10,6 +10,8 @@ This is the **initial analysis** endpoint. [cite_start]Its only job is to inspec
 * [cite_start]**Process:** The backend receives the file and uses a library or regular expressions to find all placeholder tags within it[cite: 59].
 * [cite_start]**Output:** A **JSON array** containing the list of placeholder strings found in the file (e.g., `["client_name", "project_title", "date"]`)[cite: 59].
 
+TESTS PASSED
+
 ---
 
 ### ## 2. `POST /api/save_template`
@@ -21,6 +23,8 @@ This is the **template creation** endpoint. [cite_start]It's called after the us
     1.  [cite_start]Uploads the `.pptx` file to your **AWS S3 bucket** using `boto3`[cite: 62, 104].
     2.  [cite_start]Saves the template's metadata—including its name, S3 URL, S3 key, and placeholder list—as a new record in the **PostgreSQL database**[cite: 62, 106].
 * [cite_start]**Output:** A success message that includes the **unique ID** of the newly created template[cite: 101, 107].
+
+TESTS PASSED
 
 ---
 
