@@ -731,3 +731,119 @@ Expected Result: You will see the row for your template, but the deleted_at colu
 If all these tests pass, your soft-delete implementation is correct and working as intended.
 
 ALL TESTS PASSED
+
+## Journey 1: Creating and Saving a New Template
+This journey is for a user who wants to add a new, reusable PowerPoint template to the system for the first time.
+
+Step 1: The Landing Page
+User's Perspective:
+As a new user, I arrive at a clean, minimalist web page. Since I haven't saved any templates yet, the page is mostly empty but has a clear call to action: a large, prominent button that says "+ Upload Template". This is my starting point.
+
+What Happens in the Backend:
+Nothing. The backend is completely idle. The browser is simply displaying a static frontend page.
+
+Step 2: Uploading and Analyzing the Template
+User's Perspective:
+I click the upload button, select a .pptx file from my computer, and the file begins to upload. I see a loading spinner for a moment while the system analyzes my file.
+
+What Happens in the Backend:
+The instant the upload finishes, the frontend sends the file to the POST /api/upload endpoint. The backend does not save this file permanently. Instead, it holds the file in memory and uses the pptx_service to programmatically open it and scan through every slide and shape for text that looks like a {{placeholder}}. It compiles a unique list of all the placeholders it finds and sends this list back to my browser as JSON data.
+
+
+
+
+
+Step 3: Reviewing the Placeholders
+User's Perspective:
+I'm now on a "Review Your Placeholders" page. The placeholders the system found are displayed as neat little tags or "pills" that I can look through. If I notice the system missed one, I can type it into an input field and click "Add" to see it instantly appear in the list. If one was detected by mistake, I can click a small "x" on the tag to remove it. Once I'm happy with the list, I click "Confirm & Continue".
+
+
+
+
+
+What Happens in the Backend:
+The backend is idle again. This entire review and editing process is handled locally in my browser by the React application, which is keeping track of the placeholder list in its state.
+
+Step 4: The Final Decision
+User's Perspective:
+I'm on the final setup page, "Save Your Template". I am required to give my template a name, like "Monthly Business Review". Below this, I have two choices:
+
+
+"Save Template": To add this to my library for future use.
+
+"Generate Now": A shortcut to immediately use this template without saving it first.
+
+Path A: If I click "Save Template"
+
+User's Perspective: I'm immediately taken back to the main dashboard. It's no longer empty; I now see a tile representing the "Monthly Business Review" template I just saved. My task of adding a template is complete, and I can now either use it or close the website.
+
+
+
+What Happens in the Backend: My browser sends the .pptx file, the final list of placeholders, and the template name to the POST /api/save_template endpoint. The backend springs into action: it first uploads the .pptx file to a secure AWS S3 bucket for permanent storage. Then, it saves all the metadata—the name, the S3 file key, and the placeholder list—into the PostgreSQL database.
+
+
+
+
+
+Path B: If I click "Generate Now"
+
+User's Perspective: Instead of saving, I'm taken directly to the dynamic "Data Entry Form." This lets me immediately start filling in the details for a presentation, following the steps in Journey 2 below.
+
+What Happens in the Backend: The backend does nothing at this point. The browser simply uses the template data it already has in its state and moves to the next phase of the UI without needing to save the template.
+
+## Journey 2: Using a Template to Generate a Presentation
+This is the primary day-to-day workflow for a user who wants to create a new presentation from a template they've already saved.
+
+Step 1: Selecting a Template
+User's Perspective:
+As a returning user, I land on the dashboard, which now displays a grid of all my saved templates. Each template is a visual tile, making it easy to find the one I need. When I hover my mouse over the "Monthly Business Review" tile, a "Use Template" button appears, and I click it.
+
+
+
+What Happens in the Backend:
+As soon as the dashboard page loads, the frontend calls the GET /api/templates endpoint. The backend queries the PostgreSQL database for all templates that haven't been deleted and returns a JSON list of them, which the frontend uses to build the grid of tiles I see on the screen.
+
+
+
+
+Step 2: Filling in the Details
+User's Perspective:
+I'm now on a data entry form that has been dynamically built just for this template. For a text placeholder like {{client_name}}, I get a simple input box. For a list like {{project_updates}}, I see an interface with an "+ Add Update" button that lets me add as many bullet points as I need. For an image like {{company_logo}}, I see a drag-and-drop box that shows me a thumbnail preview once I upload the picture. After I've filled everything out, I click "Next: Preview".
+
+
+
+
+
+What Happens in the Backend:
+The backend is completely idle during this step. The form is built and all the data I'm entering is being temporarily stored within the React application in my browser.
+
+
+Step 3: Final Review
+User's Perspective:
+I see a clean summary of all the information I just entered, allowing me to give it one last look for any typos. If I spot a mistake, a small "Edit" link next to each item lets me quickly correct it. Everything looks good, so I click the final, prominent "Generate Presentation" button.
+
+
+
+What Happens in the Backend:
+The backend is still idle, waiting for the final command to generate the file.
+
+Step 4: Generation and Download
+User's Perspective:
+As soon as I click the button, a loading spinner appears on the screen. After a few seconds, my browser's download window pops up, asking me to save the final .pptx file, which has been automatically named for me (e.g., Monthly_Business_Review.pptx). Once the download starts, I am left on the preview page. My task is complete, and I can now either go back to the homepage to start another presentation or simply close the website.
+
+What Happens in the Backend:
+This is the busiest step for the backend.
+
+My browser sends the template_id and all the data I entered as a JSON payload to the POST /api/generate endpoint.
+
+The backend uses the template_id to query the PostgreSQL database to find the template's location in S3.
+
+
+It then uses boto3 to download that specific .pptx template from AWS S3 directly into the server's memory.
+
+
+The pptx_service opens the in-memory template and, one by one, replaces all the text and image placeholders with the data from the JSON payload. For images, it makes additional calls to S3 to download them into memory as well.
+
+A brand new, populated presentation is created entirely in-memory.
+
+Finally, the backend sends this newly generated file back to my browser with special headers that trigger the download prompt.
