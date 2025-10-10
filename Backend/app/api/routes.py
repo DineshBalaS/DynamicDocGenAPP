@@ -25,13 +25,20 @@
 #         return jsonify({"error": "A database error occurred."}), 500
 
 import json
+import re
 import psycopg2
 from psycopg2.extras import Json
-from flask import jsonify, request
+from flask import jsonify, request, send_file
+from pptx_renderer.plugins import Image, table
+
 from . import api_bp
 from app import get_db, get_s3
 from app.services import pptx_service
 from app.services.s3_service import S3Service, S3UploadError, S3Error
+
+def sanitize_filename(filename):
+    """Removes characters that are unsafe for file systems."""
+    return re.sub(r'[^a-zA-Z0-9_.-]', '_', filename)
 
 @api_bp.route('/templates', methods=['GET'])
 def get_templates():
@@ -109,7 +116,7 @@ def save_template():
     try:
         with db.cursor() as cur:
             # 2. Business Logic: Check for duplicate name
-            cur.execute("SELECT id FROM templates WHERE name = %s", (template_name,))
+            cur.execute("SELECT id FROM templates WHERE name = %s AND deleted_at IS NULL", (template_name,))
             if cur.fetchone():
                 return jsonify({"error": "A template with this name already exists."}), 409
 
@@ -153,7 +160,7 @@ def delete_template(template_id):
     try:
         with db.cursor() as cur:
             # Step 1: Fetch the record to get the s3_key
-            cur.execute("SELECT s3_key FROM templates WHERE id = %s", (template_id,))
+            cur.execute("SELECT s3_key FROM templates WHERE id = %s AND deleted_at IS NULL", (template_id,))
             record = cur.fetchone()
 
             # Step 2: Handle Not Found
@@ -180,3 +187,144 @@ def delete_template(template_id):
         db.rollback()
         print(f"Error deleting template {template_id}: {e}")
         return jsonify({"error": "An internal error occurred while deleting the template."}), 500
+
+# @api_bp.route('/generate', methods=['POST'])
+# def generate():
+#     """Endpoint to generate a presentation from a template and user data."""
+#     payload = request.get_json()
+#     if not payload or 'templateId' not in payload or 'data' not in payload:
+#         return jsonify({"error": "Missing templateId or data in request body"}), 400
+    
+#     template_id = payload['templateId']
+#     data = payload['data']
+#     db = get_db()
+
+#     try:
+#         with db.cursor() as cur:
+#             # 1. Fetch template and validate
+#             query = "SELECT name, s3_key, placeholders FROM templates WHERE id = %s AND deleted_at IS NULL"
+#             cur.execute(query, (template_id,))
+#             record = cur.fetchone()
+#             if record is None:
+#                 return jsonify({"error": "Template not found."}), 404
+            
+#             template_name, s3_key, required_placeholders = record
+
+#             # 2. Validate incoming data against required placeholders
+#             for placeholder in required_placeholders:
+#                 ph_name = placeholder['name']
+#                 if ph_name not in data or not str(data[ph_name]).strip():
+#                     return jsonify({"error": f"Missing or empty value for required placeholder: {ph_name}"}), 400
+
+#             # 3. Download, Generate, and Respond
+#             s3 = get_s3()
+#             template_stream = s3.download_file_as_stream(s3_key)
+            
+#             output_stream = pptx_service.generate_presentation(template_stream, data)
+
+#             # 4. Determine filename and send file
+#             client_name = data.get('client_name', '').strip()
+#             download_name = f"{client_name}.pptx" if client_name else f"{template_name}.pptx"
+            
+#             return send_file(
+#                 output_stream,
+#                 mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation',
+#                 as_attachment=True,
+#                 download_name=sanitize_filename(download_name)
+#             )
+#     except Exception as e:
+#         print(f"Error generating presentation for template {template_id}: {e}")
+#         return jsonify({"error": "An internal error occurred while generating the presentation."}), 500
+
+@api_bp.route('/generate', methods=['POST'])
+def generate():
+    """
+    Endpoint to generate a presentation from a template and user data.
+    Orchestrates downloading the template and images from S3, preparing
+    the rendering context, and calling the presentation generation service.
+    """
+    # 1. Extract and validate the request payload
+    payload = request.get_json()
+    if not payload or 'templateId' not in payload or 'data' not in payload:
+        return jsonify({"error": "Missing templateId or data in request body"}), 400
+
+    template_id = payload['templateId']
+    data = payload['data']
+    db = get_db()
+
+    try:
+        with db.cursor() as cur:
+            # 2. Fetch template metadata from the database
+            query = "SELECT name, s3_key, placeholders FROM templates WHERE id = %s AND deleted_at IS NULL"
+            cur.execute(query, (template_id,))
+            record = cur.fetchone()
+            if record is None:
+                return jsonify({"error": "Template not found."}), 404
+
+            template_name, s3_key, required_placeholders = record
+
+            # 3. Validate that the incoming data provides all required placeholders
+            for placeholder in required_placeholders:
+                ph_name = placeholder['name']
+                if ph_name not in data or (data[ph_name] is None) or \
+                   (isinstance(data[ph_name], str) and not data[ph_name].strip()):
+                    return jsonify({"error": f"Missing or empty value for required placeholder: '{ph_name}'"}), 400
+
+            # 4. Prepare for generation
+            s3 = get_s3()
+            template_stream = s3.download_file_as_stream(s3_key)
+            
+            # 5. Build the rendering context, processing special data types
+            render_context = {}
+            for placeholder in required_placeholders:
+                ph_name = placeholder['name']
+                ph_type = placeholder.get('type', 'text')
+                value = data[ph_name]
+
+                if ph_type == 'image':
+                    # For images, the value is an S3 key. Download it into a
+                    # stream and wrap it in the renderer's Image object.
+                    image_stream = s3.download_file_as_stream(value)
+                    render_context[ph_name] = Image(image_stream)
+                elif ph_type == 'table':
+                    # For tables, the value is a list of lists. Wrap it
+                    # in the renderer's Table object.
+                    render_context[ph_name] = table(value)
+                elif isinstance(value, list):
+                    # For bullet points, convert a list of strings into a
+                    # single string with newline separators.
+                    render_context[ph_name] = "\n".join(map(str, value))
+                else:
+                    # For plain text, use the value directly.
+                    render_context[ph_name] = value
+            
+            # Also include any data keys that might not be in the formal
+            # placeholders list, allowing for more flexible templates.
+            for key, value in data.items():
+                if key not in render_context:
+                    render_context[key] = value
+
+            # 6. Call the service to perform the generation
+            output_stream = pptx_service.generate_presentation(template_stream, data, s3)
+
+            # 7. Create a sensible download name and return the file
+            client_name = data.get('client_name', '').strip()
+            download_name = f"{client_name}.pptx" if client_name else f"{template_name}.pptx"
+            
+            return send_file(
+                output_stream,
+                mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                as_attachment=True,
+                download_name=sanitize_filename(download_name)
+            )
+
+    except S3Error as e:
+        print(f"S3 Error generating presentation for template {template_id}: {e}")
+        return jsonify({"error": "An error occurred with the file storage service."}), 500
+    except psycopg2.Error as e:
+        print(f"Database Error generating presentation for template {template_id}: {e}")
+        return jsonify({"error": "An error occurred with the database."}), 500
+    except Exception as e:
+        # Catch-all for other errors, such as from the pptx-renderer library
+        print(f"Unexpected error generating presentation for template {template_id}: {e}")
+        return jsonify({"error": "An internal error occurred while generating the presentation."}), 500

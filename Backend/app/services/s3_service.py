@@ -1,6 +1,7 @@
 import os
 import uuid
 import boto3
+from io import BytesIO
 from botocore.exceptions import ClientError
 from flask import current_app
 
@@ -84,6 +85,18 @@ class S3Service:
             # In a real app, you would log this error
             print(f"S3 Upload Error: {e}")
             raise S3UploadError(f"Failed to upload '{original_filename}' to S3.")
+        
+    def download_file_as_stream(self, s3_key: str) -> BytesIO:
+        """Downloads an S3 object into an in-memory stream."""
+        try:
+            stream = BytesIO()
+            self.s3_client.download_fileobj(self.bucket_name, s3_key, stream)
+            stream.seek(0)  # Rewind the stream to the beginning for reading
+            return stream
+        except ClientError as e:
+            print(f"S3 Download Error: {e}")
+            raise S3Error(f"Failed to download file '{s3_key}' from S3.")
+
 
     def create_presigned_url_for_download(self, s3_key: str) -> str:
         """
