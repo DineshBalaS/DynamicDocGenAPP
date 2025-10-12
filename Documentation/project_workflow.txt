@@ -848,25 +848,60 @@ A brand new, populated presentation is created entirely in-memory.
 
 Finally, the backend sends this newly generated file back to my browser with special headers that trigger the download prompt.
 
-# Feature: Automatic Deletion of Temporary Assets
+## Checklist Format
+### Application Changes
 
-## Part 1: Application Code Modification
+[ ] Open the app/services/s3_service.py file.
 
-* **File to Modify**: `app/services/s3_service.py`
-* **Action**: Update the `upload_file` function to accept and use a prefix for the S3 key. This segregates temporary files from permanent ones.
-* **Example Change**:
-    * The function signature is updated to: `def upload_file(self, file_stream, original_filename: str, prefix: str = "") -> str:`
-    * The S3 key is generated with: `s3_key = f"{prefix}{uuid.uuid4()}{file_extension}"`
-* **Calling Code**: The API endpoint that handles the upload of temporary user images must be updated to call the service with the new prefix: `s3.upload_file(..., prefix="temp/")`.
+[ ] Modify the upload_file function to accept an optional prefix argument (e.g., def upload_file(self, file_stream, original_filename: str, prefix: str = ""):).
 
-## Part 2: AWS S3 Configuration
+[ ] Update the s3_key generation inside the function to prepend the prefix if it exists (e.g., s3_key = f"{prefix}{uuid.uuid4()}{file_extension}").
 
-* **Service**: AWS S3
-* **Feature**: Lifecycle Rule
-* **Action**: Create a new rule to automatically delete objects from the `temp/` directory after 24 hours.
-* **Configuration Details**:
-    * **Rule Name**: DeleteTempAssetsAfter1Day
-    * **Rule Scope**: Filter by Prefix
-    * **Prefix Value**: temp/
-    * **Rule Action**: Expire current versions of objects
-    * **Expiration**: 1 day after object creation
+[ ] Locate the API endpoint responsible for uploading temporary user images (e.g., company logos for the data entry form).
+
+[ ] When calling the s3_service.upload_file function from that endpoint, pass the prefix='temp/' argument.
+
+### AWS S3 Configuration
+
+[ ] Log in to the AWS Management Console and navigate to your S3 bucket.
+
+[ ] Go to the Management tab.
+
+[ ] Click Create lifecycle rule.
+
+[ ] Name the rule DeleteTempAssetsAfter1Day.
+
+[ ] Scope the rule using a filter with the Prefix temp/.
+
+[ ] In "Lifecycle rule actions," select Expire current versions of objects.
+
+[ ] Set "Days after object creation" to 1.
+
+[ ] Review and create the rule.
+
+## Code/Log Format
+Markdown
+
+## 3. Deleting Temporary Images
+
+Deleting temporary images (e.g., a logo uploaded for a single presentation) that are abandoned by users follows the exact same principle but requires a small change in our application logic.
+
+The goal is to store temporary images separately from our permanent template files so we can apply a much more aggressive cleanup rule to them.
+
+### Step 1: Modify Your Application to Use a temp/ Prefix
+
+When a user uploads an image that is part of the data for a presentation (not the template itself), the application must upload it to S3 with a `temp/` prefix.
+
+* **Action**: Modify the `upload_file` function in `s3_service.py` to accept an optional prefix.
+* **Implementation**: For temporary files, the calling API endpoint will pass `prefix='temp/'` to the service, resulting in an S3 key like `temp/asset-guid.jpg`.
+
+### Step 2: Create a Second Lifecycle Rule for Temporary Files
+
+A second, more aggressive lifecycle rule will be created in AWS S3 to target these temporary files.
+
+* **Rule Name**: `DeleteTempAssetsAfter1Day`
+* **Rule Scope Prefix**: `temp/`
+* **Action**: Expire current versions of objects
+* **Days after object creation**: 1
+
+With this setup, any image uploaded for a presentation will be automatically deleted from S3 after 24 hours if it's not used, keeping the bucket clean and storage costs low.
