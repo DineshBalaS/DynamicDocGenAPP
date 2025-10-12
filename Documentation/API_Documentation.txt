@@ -64,4 +64,77 @@ This is the **core functional endpoint** of the entire application, responsible 
     3.  [cite_start]Uses the `python-pptx-templater` library to replace the placeholders with the user-provided data in memory[cite: 69, 126].
 * [cite_start]**Output:** The newly generated `.pptx` file, sent back to the client **as a file download**[cite: 69, 127].
 
+Of course. Here is the API documentation for the newly created endpoint, written in a clean and standard format.
+
+-----
+
+### \#\# API Endpoint: Upload Asset
+
+`POST /api/assets/upload`
+
+This endpoint is used to upload a temporary asset, such as an image for a presentation placeholder. It's designed for files that are part of a single session and do not need to be stored permanently.
+
+Files uploaded here are saved to a `temp/` directory in the S3 bucket and are intended to be automatically deleted by an S3 Lifecycle Policy after a short period (e.g., 24 hours).
+
+-----
+
+### **Request**
+
+  * **Method**: `POST`
+  * **Body**: `multipart/form-data`
+  * **Fields**:
+      * `file`: The image file to be uploaded.
+
+#### **Validation**
+
+  * The request **must** contain a file part with the key `file`.
+  * The uploaded file **must** have a filename.
+  * The file extension **must** be one of the following allowed types: `.png`, `.jpg`, `.jpeg`, or `.gif`.
+
+-----
+
+### **Responses**
+
+#### ✅ **Success Response**
+
+  * **Status Code**: `201 Created`
+
+  * **Content**: A JSON object containing the unique S3 key for the uploaded asset. This key should be used in the `/api/generate` request.
+
+  * **Example Body**:
+
+    ```json
+    {
+        "s3_key": "temp/a1b2c3d4-e5f6-7890-a1b2-c3d4e5f67890.jpg"
+    }
+    ```
+
+#### ❌ **Error Responses**
+
+  * **Status Code**: `400 Bad Request`
+
+      * **Reason**: A required part of the request is missing or invalid.
+      * **Example Body**:
+        ```json
+        {
+            "error": "No file part in the request"
+        }
+        ```
+        *or*
+        ```json
+        {
+            "error": "Invalid file type. Allowed types are: .png, .jpg, .jpeg, .gif"
+        }
+        ```
+
+  * **Status Code**: `500 Internal Server Error`
+
+      * **Reason**: A problem occurred on the server, most likely during the file upload to S3 storage.
+      * **Example Body**:
+        ```json
+        {
+            "error": "Failed to upload asset to storage."
+        }
+        ```
+
 
