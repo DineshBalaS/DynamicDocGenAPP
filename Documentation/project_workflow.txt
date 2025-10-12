@@ -847,3 +847,26 @@ The pptx_service opens the in-memory template and, one by one, replaces all the 
 A brand new, populated presentation is created entirely in-memory.
 
 Finally, the backend sends this newly generated file back to my browser with special headers that trigger the download prompt.
+
+# Feature: Automatic Deletion of Temporary Assets
+
+## Part 1: Application Code Modification
+
+* **File to Modify**: `app/services/s3_service.py`
+* **Action**: Update the `upload_file` function to accept and use a prefix for the S3 key. This segregates temporary files from permanent ones.
+* **Example Change**:
+    * The function signature is updated to: `def upload_file(self, file_stream, original_filename: str, prefix: str = "") -> str:`
+    * The S3 key is generated with: `s3_key = f"{prefix}{uuid.uuid4()}{file_extension}"`
+* **Calling Code**: The API endpoint that handles the upload of temporary user images must be updated to call the service with the new prefix: `s3.upload_file(..., prefix="temp/")`.
+
+## Part 2: AWS S3 Configuration
+
+* **Service**: AWS S3
+* **Feature**: Lifecycle Rule
+* **Action**: Create a new rule to automatically delete objects from the `temp/` directory after 24 hours.
+* **Configuration Details**:
+    * **Rule Name**: DeleteTempAssetsAfter1Day
+    * **Rule Scope**: Filter by Prefix
+    * **Prefix Value**: temp/
+    * **Rule Action**: Expire current versions of objects
+    * **Expiration**: 1 day after object creation
