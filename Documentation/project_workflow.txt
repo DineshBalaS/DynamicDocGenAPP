@@ -905,3 +905,29 @@ A second, more aggressive lifecycle rule will be created in AWS S3 to target the
 * **Days after object creation**: 1
 
 With this setup, any image uploaded for a presentation will be automatically deleted from S3 after 24 hours if it's not used, keeping the bucket clean and storage costs low.
+
+How It Works: The Image upload feature (Backend Process)
+This new feature introduces a dedicated endpoint for handling temporary asset uploads, keeping them separate from the main template-saving workflow. The existing pptx_service.py will not need any changes, as it's already designed to work with any S3 key you provide.
+
+Here’s the process from the user's perspective:
+
+Uploading an Image: You're on the "Data Entry Form," ready to fill in a placeholder like {{company_logo}}. When you select an image from your computer, the frontend immediately sends that image file to a new, dedicated backend endpoint: POST /api/assets/upload.
+
+Backend Processing:
+
+The new endpoint in routes.py receives the image.
+
+It calls the modified upload_file function in s3_service.py, specifically passing the argument prefix='temp/'.
+
+Your s3_service uploads the file to your S3 bucket, saving it with a key like temp/a1b2c3d4-....jpg.
+
+The endpoint responds to the frontend with a simple JSON object containing the newly created S3 key: {"s3_key": "temp/a1b2c3d4-....jpg"}.
+
+Generating the Presentation:
+
+The frontend stores this S3 key. When you finally click "Generate Presentation," it sends the key along with all other data to the existing POST /api/generate endpoint.
+
+The generate function proceeds as it normally does. When it processes the {{company_logo}} placeholder, it uses the provided key (temp/a1b2c3d4-....jpg) to download the image from S3 and embed it into the final presentation.
+
+This process is robust because it isolates temporary files and relies on a dedicated S3 Lifecycle Policy for cleanup, requiring no complex scheduling code in your application.
+
