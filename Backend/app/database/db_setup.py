@@ -26,8 +26,13 @@ def create_tables():
             name VARCHAR(255) NOT NULL,
             s3_key VARCHAR(1024) NOT NULL,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-            placeholders JSONB
+            placeholders JSONB,
+            deleted_at TIMESTAMP WITH TIME ZONE DEFAULT NULL
         );
+        """
+        
+        add_column_command = """
+        ALTER TABLE templates ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE DEFAULT NULL;
         """
         
         cur.execute(create_table_command)
