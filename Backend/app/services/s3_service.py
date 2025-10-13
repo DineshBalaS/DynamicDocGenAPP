@@ -57,7 +57,7 @@ class S3Service:
             # Catch potential Boto3 initialization errors
             raise S3ConfigError(f"Failed to initialize Boto3 client: {e}")
 
-    def upload_file(self, file_stream, original_filename: str) -> str:
+    def upload_file(self, file_stream, original_filename: str, prefix: str = "") -> str:
         """
         Uploads a file stream to the S3 bucket with a unique name.
 
@@ -72,7 +72,7 @@ class S3Service:
             S3UploadError: If the upload fails.
         """
         _, file_extension = os.path.splitext(original_filename)
-        s3_key = f"{uuid.uuid4()}{file_extension}"
+        s3_key = f"{prefix}{uuid.uuid4()}{file_extension}"
 
         try:
             self.s3_client.upload_fileobj(
