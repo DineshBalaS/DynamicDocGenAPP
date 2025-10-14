@@ -26,8 +26,7 @@ def create_tables():
             name VARCHAR(255) NOT NULL,
             s3_key VARCHAR(1024) NOT NULL,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-            placeholders JSONB,
-            deleted_at TIMESTAMP WITH TIME ZONE DEFAULT NULL
+            placeholders JSONB
         );
         """
         
@@ -36,6 +35,7 @@ def create_tables():
         """
         
         cur.execute(create_table_command)
+        cur.execute(add_column_command)
         
         # Commit the changes
         conn.commit()

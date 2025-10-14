@@ -38,19 +38,15 @@ class S3Service:
         """
         config = current_app.config
         self.bucket_name = config.get('S3_BUCKET_NAME')
-        aws_access_key_id = config.get('AWS_ACCESS_KEY_ID')
-        aws_secret_access_key = config.get('AWS_SECRET_ACCESS_KEY')
         aws_region = config.get('AWS_REGION')
 
         # Validate that all required configuration variables are present
-        if not all([self.bucket_name, aws_access_key_id, aws_secret_access_key, aws_region]):
-            raise S3ConfigError("Missing required S3 configuration in the application.")
+        if not all([self.bucket_name, aws_region]):
+            raise S3ConfigError("Missing S3_BUCKET_NAME or AWS_REGION in the application configuration.")
 
         try:
             self.s3_client = boto3.client(
                 's3',
-                aws_access_key_id=aws_access_key_id,
-                aws_secret_access_key=aws_secret_access_key,
                 region_name=aws_region
             )
         except Exception as e:
