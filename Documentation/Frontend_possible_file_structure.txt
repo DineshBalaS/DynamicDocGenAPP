@@ -1,0 +1,55 @@
+pptx-templater-frontend/
+│
+├── .env                     # Local environment variables (API keys, URLs). Ignored by Git.
+[cite_start]├── .env.example             # Template for environment variables for other developers[cite: 2464].
+[cite_start]├── .gitignore               # Specifies files for Git to ignore (e.g., node_modules, .env)[cite: 2165].
+├── index.html               # The main HTML entry point for the Vite app.
+├── package.json             # Project metadata and list of dependencies (React, Axios, etc.).
+├── postcss.config.js        # Configuration for PostCSS (used by Tailwind CSS).
+├── tailwind.config.js       # Configuration file for the Tailwind CSS framework.
+[cite_start]├── vite.config.js           # Vite configuration file (plugins for React, Tailwind CSS)[cite: 2].
+│
+├── public/                  # Static assets that don't go through the build process.
+│   └── favicon.ico          # Browser icon for the application.
+│
+└── src/                     # Main application source code directory.
+    │
+    [cite_start]├── api/                 # Handles all communication with the Flask backend[cite: 2391, 2407].
+    │   ├── axiosConfig.js   # Centralized Axios instance configuration (sets base URL).
+    [cite_start]│   └── templateService.js # Functions for each API endpoint (get, upload, generate, etc.)[cite: 2408].
+    │
+    ├── assets/              # Static assets processed by Vite (images, fonts, etc.).
+    │   └── app-logo.svg     # Example application logo.
+    │
+    [cite_start]├── components/          # Small, reusable UI components[cite: 2391, 2400].
+    │   │
+    │   ├── common/          # General components used across multiple pages.
+    │   │   ├── Header.jsx   # The main navigation bar for the application.
+    [cite_start]│   │   └── ProgressBar.jsx # Visual indicator for file upload progress[cite: 2401].
+    │   │
+    │   ├── layout/          # Components that define the structure of pages.
+    │   │   └── MainLayout.jsx # Wrapper including Header, footer, and main content area.
+    │   │
+    │   ├── templates/       # Components specifically for handling templates.
+    │   │   ├── PlaceholderTag.jsx # The "pill" tag for displaying placeholders.
+    [cite_start]│   │   └── TemplateCard.jsx # The tile for the dashboard grid[cite: 2402].
+    │   │
+    │   └── ui/              # Generic, low-level UI elements (buttons, inputs, etc.).
+    │       ├── Button.jsx   # A stylish, reusable button.
+    │       ├── Card.jsx     # A styled container card.
+    │       ├── Input.jsx    # A styled text input field.
+    [cite_start]│       ├── Spinner.jsx  # A loading spinner animation[cite: 2401].
+    │       └── Toast.jsx    # Component for subtle, non-blocking notifications.
+    │
+    ├── hooks/               # Custom React hooks for shared logic (e.g., data fetching).
+    │   └── useTemplates.js  # Example hook to fetch and manage dashboard templates.
+    │
+    [cite_start]├── pages/               # Full-page components that are mapped to routes[cite: 2391, 2403].
+    │   ├── DashboardPage.jsx  # Main page displaying the grid of saved templates.
+    │   ├── DataEntryPage.jsx  # Dynamically generated form to fill placeholder data.
+    │   ├── NotFoundPage.jsx # A 404 page for invalid URLs.
+    │   └── UploadWorkflowPage.jsx # Multi-step page for upload, review, and save flow.
+    │
+    [cite_start]├── App.jsx              # Root component, handles application-level routing[cite: 2399].
+    ├── index.css            # Global CSS styles and Tailwind CSS imports.
+    └── main.jsx             # The main entry point for the React application.

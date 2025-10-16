@@ -1,0 +1,38 @@
+## Initial Phase: Project Setup & Foundation 🏗️
+The goal of this phase is to create a clean, organized, and scalable starting point for your React application, with all necessary configurations in place to support your AWS deployment plan.
+
+1. Finalize Project Setup This step ensures your local development environment is ready and mirrors the structure we've planned.
+
+Initialize Project: You've already done this by creating a Vite + React project and initializing Tailwind CSS.
+
+Install Core Dependencies: We'll install the essential libraries for handling API calls and navigation. Open your terminal in the AkkaApp folder and run:
+
+Bash
+
+npm install axios react-router-dom
+
+Create Folder Structure: Inside your src/ directory, create the planned folders: api, components, hooks, and pages. This organizes your code for the rest of the project.
+
+2. Configure for AWS Deployment Based on your decision to use AWS, we'll configure the project to work seamlessly with your ECR/App Runner backend. The clear choice for your frontend is AWS Amplify, which is designed to host modern web apps and connects directly to your code repository for easy, continuous deployment.
+
+Set Environment Variables: In the root of your frontend project, create a file named .env. Inside it, add the URL for your local Flask backend:
+
+REACT_APP_API_BASE_URL=http://127.0.0.1:5000
+This tells your app where to send API requests when you're developing on your machine. When you deploy to AWS Amplify, you will set this same variable in the Amplify console to point to your live AWS App Runner URL.
+
+Simplify CORS Policy: Since you won't use a separate staging environment, your backend's CORS policy is now much simpler. It only needs to allow requests from two places: http://localhost:5173 (your Vite dev server) and the final https://your-app-name.amplifyapp.com URL.
+
+3. Establish the API Service Layer This creates a clean, dedicated place for all backend communication, making the code much easier to manage.
+
+Create Axios Instance: In src/api/, create a file named axiosConfig.js. This file will set up a central axios instance that automatically uses the REACT_APP_API_BASE_URL from your .env file.
+
+Define API Functions: In src/api/, create the templateService.js file. Here, you'll write the functions that will call your backend endpoints, like getTemplates() and uploadForAnalysis().
+
+4. Implement Basic Error Handling & Logging Per your request, we'll set up a simple but effective way to handle errors.
+
+Create a Toast Component: In src/components/ui/, create a basic Toast.jsx component. This component will be used to display subtle, simple error messages to the user when an API call fails.
+
+
+Implement Console Logging: In your templateService.js functions, we will wrap all API calls in try...catch blocks. If an error occurs, we will show the toast notification to the user and log the detailed technical error to the browser's console. This provides the "log" the client can use for debugging without needing a complex external service.
+
+By the end of this phase, you'll have a robust project foundation that is correctly configured for your AWS deployment target, with a clean structure ready for building the visual components.
