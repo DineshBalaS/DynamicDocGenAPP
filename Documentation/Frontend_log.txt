@@ -96,3 +96,77 @@ Testing & Verification:
 ✅ Visual Check: Each step should appear exactly as designed in your UI documents, with all buttons, inputs, and placeholder tags correctly styled.
 
 After completing these steps, you will have a fully styled, clickable prototype of your application, ready for backend integration in Phase 3.
+
+## The Goal of Phase 3 🔗
+The goal of this phase is to systematically connect your frontend to your backend, replacing every piece of mock data and static functionality with live API calls. By the end of this phase, your application will be fully functional, capable of uploading, saving, listing, deleting, and generating presentations.
+
+## Phase 3 Integration Plan & Checklist
+Here is a step-by-step plan. We will focus on one feature at a time, implement the frontend logic, and verify it works before moving to the next.
+
+### Step 1: Connect the Dashboard to GET /api/templates
+First, we'll make the dashboard display real templates from your database.
+
+Implementation:
+
+In src/pages/DashboardPage.jsx, import getTemplates from your templateService.js file.
+
+Use a useEffect hook to call this function when the component first loads.
+
+Use a useState hook to store the fetched templates.
+
+Replace the mockTemplates array with this new state variable. The component will now render real data.
+
+Add loading and error states: display a spinner while fetching and an error message if the API call fails.
+
+Verification:
+
+✅ Visual Check: The dashboard should now display the actual templates that exist in your PostgreSQL database. If the database is empty, it should show an empty screen (which we'll improve later) instead of the mock data.
+
+### Step 2: Implement the Full Template Upload Workflow
+This is the most complex step, connecting all three parts of the upload page to three different backend endpoints.
+
+Implementation:
+
+File Analysis (POST /api/upload): In UploadWorkflowPage.jsx, when a user selects a file in Step 1, we will call a new uploadForAnalysis function in templateService.js. This function will send the file and receive the list of placeholders, which we'll store in state.
+
+State Management: The placeholder list from the API response will now populate the review screen in Step 2, replacing the mock data.
+
+Template Saving (POST /api/save_template): In Step 3, when the user clicks "Save Template," we'll call a new saveTemplate function in templateService.js. This function must send multipart/form-data containing the template name, the final list of placeholders (as a JSON string), and the original file itself. On success, we will navigate the user back to the dashboard.
+
+Verification:
+
+✅ End-to-End Test: Perform a full upload. Select a .pptx file, review the auto-detected placeholders, give it a name, and click "Save." You should be redirected to the dashboard, where your new template now appears in the list. Check your S3 bucket and database to confirm the records were created.
+
+### Step 3: Implement Template Deletion (DELETE /api/templates/<id>)
+Next, we'll activate the delete functionality on the dashboard.
+
+Implementation:
+
+Create a deleteTemplate function in templateService.js.
+
+On the DashboardPage.jsx, add an onClick handler to the "delete" button (or the kebab menu option) on each TemplateCard.
+
+This handler will show a confirmation modal ("Are you sure?"). If the user confirms, it will call the deleteTemplate function with the template's ID.
+
+On success, it will refresh the list of templates to show that the item has been removed.
+
+Verification:
+
+✅ Interaction Check: Go to the dashboard, delete a template, and confirm the action in the modal. The card should disappear from the UI. A subsequent page refresh should confirm it's gone. Check your database to confirm the deleted_at timestamp is set.
+
+### Step 4: Implement the Presentation Generation Workflow
+This final step connects the data entry form to the /generate endpoint and handles the file download.
+
+Implementation:
+
+Data Entry Page: We will create the DataEntryPage.jsx. This page will receive a templateId from the URL. It will fetch the template details (including its placeholders array) to dynamically build the form.
+
+Asset Uploads (POST /api/assets/upload): For image placeholders, the file input's onChange handler will immediately call a new uploadAsset function in templateService.js. This function will upload the image and return the temporary s3_key, which we'll store in our form's state.
+
+Generation (POST /api/generate): When the user clicks the final "Generate Presentation" button, we will call a generatePresentation function in templateService.js. This function will send a JSON payload containing the templateId and the data object (which includes the text values and the s3_keys for images).
+
+File Download: The generatePresentation function must be configured to handle a blob response from the server. We will write the utility code to take this blob and trigger a browser download prompt for the user.
+
+Verification:
+
+✅ End-to-End Test: Select a template from the dashboard. Fill out the dynamic form, including uploading an image. Click "Generate Presentation." A loading spinner should appear, followed by a browser download prompt for the finished .pptx file. Open the downloaded file to confirm all placeholders were correctly filled.
