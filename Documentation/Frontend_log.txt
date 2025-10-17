@@ -36,3 +36,63 @@ Create a Toast Component: In src/components/ui/, create a basic Toast.jsx compon
 Implement Console Logging: In your templateService.js functions, we will wrap all API calls in try...catch blocks. If an error occurs, we will show the toast notification to the user and log the detailed technical error to the browser's console. This provides the "log" the client can use for debugging without needing a complex external service.
 
 By the end of this phase, you'll have a robust project foundation that is correctly configured for your AWS deployment target, with a clean structure ready for building the visual components.
+
+## Phase 2 Checklist & Plan
+Here is a step-by-step plan for building the static UI, including how we'll test each part.
+
+### Step 1: Create the Main Application Layout
+We'll start by creating the main frame of the application—the header and content area—to ensure a consistent look on every page.
+
+Implementation:
+
+Create a Header.jsx component in src/components/common/. This will contain your app's title or logo.
+
+Create a MainLayout.jsx component in src/components/layout/. This component will render the Header at the top and then render the specific page content below it.
+
+Update App.jsx to wrap all your page routes within this MainLayout component.
+
+Testing & Verification:
+
+✅ Visual Check: When you run the app, you should see your new header permanently fixed at the top of the page.
+
+✅ Navigation Check: As you navigate between the homepage (/) and the upload page (/upload), the content below the header should change, but the header itself should remain in place.
+
+### Step 2: Build the Static Dashboard Page
+Next, we'll build the main dashboard that users will see, which primarily consists of a grid of template cards.
+
+Implementation:
+
+Create a TemplateCard.jsx component in src/components/templates/. It will be a styled card that accepts props like a template name.
+
+In src/pages/DashboardPage.jsx, create a hardcoded array of fake data (e.g., const mockTemplates = [{ id: 1, name: 'Monthly Business Review' }, { id: 2, name: 'Client Proposal' }];).
+
+Use this mockTemplates array to render a grid of your TemplateCard components.
+
+Add the styled + Upload New Template button to the page.
+
+Testing & Verification:
+
+✅ Visual Check: The dashboard should display a styled grid of template cards, each showing the name from your hardcoded data, perfectly matching your UI design.
+
+### Step 3: Build the Multi-Step Upload Workflow
+This is the most interactive part of the static build. We'll create the three-step process for uploading a new template within a single page component.
+
+Implementation:
+
+In src/pages/UploadWorkflowPage.jsx, use a React state (useState) to track the current step (e.g., step 1, step 2, step 3).
+
+Use conditional rendering to show the UI for the active step and hide the others.
+
+Step 1 UI: Build the initial file upload screen with a prominent upload button or drag-and-drop area.
+
+Step 2 UI: Build the placeholder review screen. Create a PlaceholderTag.jsx component in src/components/templates/ and use a hardcoded array of strings (e.g., ['name', 'date']) to display the tags.
+
+Step 3 UI: Build the final save screen with the "Template Name" input and the "Save Template" and "Generate Now" buttons.
+
+Testing & Verification:
+
+✅ Interaction Check: You should be able to click through the workflow. Clicking the "Upload" button takes you to step 2, and clicking "Confirm & Continue" takes you to step 3.
+
+✅ Visual Check: Each step should appear exactly as designed in your UI documents, with all buttons, inputs, and placeholder tags correctly styled.
+
+After completing these steps, you will have a fully styled, clickable prototype of your application, ready for backend integration in Phase 3.

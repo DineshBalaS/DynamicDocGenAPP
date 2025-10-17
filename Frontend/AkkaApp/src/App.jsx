@@ -1,16 +1,28 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+// src/App.jsx
+
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+
+import MainLayout from './components/layout/MainLayout';
+import DashboardPage from './pages/DashboardPage';
+import UploadWorkflowPage from './pages/UploadWorkflowPage';
+import NotFoundPage from './pages/NotFoundPage';
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <div className="text-[50px]">
-      Hello World
-    </div>
-  )
+    <Router>
+      <Routes>
+        {/* Routes that use the MainLayout */}
+        <Route element={<MainLayout />}>
+          <Route path="/" element={<DashboardPage />} />
+          <Route path="/upload" element={<UploadWorkflowPage />} />
+        </Route>
+
+        {/* Route for 404 page (doesn't use the layout) */}
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+    </Router>
+  );
 }
 
-export default App
+export default App;
