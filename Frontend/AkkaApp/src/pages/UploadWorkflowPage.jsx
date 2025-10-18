@@ -210,8 +210,7 @@ function UploadWorkflowPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
 
   const navigate = useNavigate();
-  const { showModal, handleConfirmNavigation, handleCancelNavigation } =
-    useNavigationBlocker(currentStep > 0);
+  const { showModal, handleConfirmNavigation, handleCancelNavigation } = useNavigationBlocker(currentStep > 0 && status !== 'success');
 
   const handleFileSelect = async (file) => {
     if (!file) return;
@@ -246,6 +245,7 @@ function UploadWorkflowPage() {
         setUploadProgress(Math.round((100 * event.loaded) / event.total));
       });
       setShowToast(true);
+      setStatus('success');
       setTimeout(() => navigate("/"), 3000);
     } catch (err) {
       setError(err.message);
@@ -306,6 +306,9 @@ function UploadWorkflowPage() {
         onClose={handleCancelNavigation}
         onConfirm={handleConfirmNavigation}
         title="Leave Page?"
+        confirmText="Leave Page"
+        cancelText="Stay"        
+        confirmButtonVariant="danger"
       >
         You have unsaved changes. Are you sure you want to leave? Your progress
         in the upload process will be lost.

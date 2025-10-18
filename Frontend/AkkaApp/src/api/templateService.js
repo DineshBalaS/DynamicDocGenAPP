@@ -64,3 +64,18 @@ export const saveTemplate = async (file, templateName, placeholders, onUploadPro
     throw new Error(error.response?.data?.error || 'Failed to save template.');
   }
 };
+
+/**
+ * Deletes a template from the database.
+ * @param {number} templateId - The ID of the template to delete.
+ * @returns {Promise<Object>} A promise that resolves to the success message from the backend.
+ */
+export const deleteTemplate = async (templateId) => {
+  try {
+    const response = await apiClient.delete(`/api/templates/${templateId}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Failed to delete template ${templateId}:`, error.response?.data || error.message);
+    throw new Error(error.response?.data?.error || 'Failed to delete template.');
+  }
+};
