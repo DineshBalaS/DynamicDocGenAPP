@@ -10,6 +10,8 @@ import UploadWorkflowPage from './pages/UploadWorkflowPage';
 import NotFoundPage from './pages/NotFoundPage';
 import ErrorBoundary from './components/common/ErrorBoundary';
 
+import DataEntryPage from './pages/DataEntryPage';
+
 // This is the new, modern way to define your application's routes.
 const router = createBrowserRouter([
   {
@@ -25,6 +27,10 @@ const router = createBrowserRouter([
       {
         path: '/upload',
         element: <UploadWorkflowPage />,
+      },
+      {
+        path: '/generate/:templateId',
+        element: <DataEntryPage />,
       },
     ],
   },

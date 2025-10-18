@@ -201,6 +201,37 @@ def delete_template(template_id):
         print(f"Error deleting template {template_id}: {e}")
         return jsonify({"error": "An internal error occurred while deleting the template."}), 500
 
+@api_bp.route('/templates/<int:template_id>', methods=['GET'])
+def get_template_details(template_id):
+    """
+    Endpoint to retrieve the full details for a single template,
+    including its list of placeholders.
+    """
+    try:
+        db = get_db()
+        cur = db.cursor()
+        
+        # Query for the specific template, including the placeholders JSON field
+        query = "SELECT id, name, created_at, placeholders FROM templates WHERE id = %s AND deleted_at IS NULL;"
+        cur.execute(query, (template_id,))
+        
+        record = cur.fetchone()
+        
+        # Handle case where the template does not exist
+        if record is None:
+            return jsonify({"error": "Template not found."}), 404
+            
+        # Create a dictionary from the query result
+        columns = [desc[0] for desc in cur.description]
+        template = dict(zip(columns, record))
+        
+        cur.close()
+        return jsonify(template), 200
+
+    except psycopg2.DatabaseError as e:
+        print(f"Database error fetching template {template_id}: {e}")
+        return jsonify({"error": "A database error occurred."}), 500
+
 @api_bp.route('/generate', methods=['POST'])
 def generate():
     """

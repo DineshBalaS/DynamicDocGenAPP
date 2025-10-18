@@ -1,6 +1,7 @@
 // src/components/templates/TemplateCard.jsx
 
 import React, { useState, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 
 // A placeholder icon component for actions like delete, edit, etc.
 const MoreVerticalIcon = () => (
@@ -49,7 +50,12 @@ function TemplateCard({ template, onDelete }) {
 
       {/* Hover Actions Overlay */}
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-        <button className="bg-teal-500 text-white font-bold py-2 px-4 rounded-md hover:bg-teal-600 transition-colors">Use Template</button>
+        <Link
+          to={`/generate/${template.id}`}
+          className="bg-teal-500 text-white font-bold py-2 px-4 rounded-md hover:bg-teal-600 transition-colors"
+        >
+          Use Template
+        </Link>
       </div>
       
       {/* More Options Button and Dropdown Menu */}
