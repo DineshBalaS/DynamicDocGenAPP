@@ -8,6 +8,7 @@ import { getTemplateDetails, generatePresentation } from '../api/templateService
 import Spinner from '../components/ui/spinner';
 import ErrorState from '../components/common/ErrorState';
 import ImageUploader from '../components/common/ImageUploader';
+import NoPlaceholdersFound from '../components/common/NoPlaceholdersFound';
 
 function DataEntryPage() {
     const { templateId } = useParams();
@@ -108,6 +109,11 @@ function DataEntryPage() {
     // Render error state
     if (error) {
         return <ErrorState message={error} onRetry={fetchDetails} />;
+    }
+
+    // Render no placeholders found state
+    if (!template || !template.placeholders || template.placeholders.length === 0) {
+        return <NoPlaceholdersFound />;
     }
     
     // Render the main form
