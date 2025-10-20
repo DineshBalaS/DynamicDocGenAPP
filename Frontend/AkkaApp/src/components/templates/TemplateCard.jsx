@@ -1,9 +1,8 @@
 // src/components/templates/TemplateCard.jsx
 
-import React, { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useRef, useEffect } from "react";
+import { Link } from "react-router-dom";
 
-// A placeholder icon component for actions like delete, edit, etc.
 const MoreVerticalIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -23,33 +22,48 @@ const MoreVerticalIcon = () => (
   </svg>
 );
 
-
 function TemplateCard({ template, onDelete }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isHovered, setIsHovered] = useState(false); // State to track hover
   const menuRef = useRef(null);
 
-  // This effect handles closing the menu if the user clicks outside of it.
+  // This effect still handles closing the menu if the user clicks outside of it.
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
         setIsMenuOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // The card is "active" if it's hovered OR if its menu is open.
+  const isActive = isHovered || isMenuOpen;
+
   return (
-    <div className="group relative bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden hover:shadow-lg transition-shadow duration-300">
-      {/* ... (thumbnail and card content divs remain the same) ... */}
-      <div className="h-36 bg-gray-100 flex items-center justify-center"><span className="text-gray-400 text-sm">Template Preview</span></div>
+    <div
+      className="relative bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden hover:shadow-lg transition-shadow duration-300"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {/* Thumbnail and card content divs */}
+      <div className="h-36 bg-gray-100 flex items-center justify-center">
+        <span className="text-gray-400 text-sm">Template Preview</span>
+      </div>
       <div className="p-4">
         <h3 className="font-bold text-gray-800 truncate">{template.name}</h3>
-        <p className="text-sm text-gray-500">{template.description || 'No description'}</p>
+        <p className="text-sm text-gray-500">
+          {template.description || "No description"}
+        </p>
       </div>
 
-      {/* Hover Actions Overlay */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+      {/* Hover Actions Overlay: Visibility is now tied to the 'isActive' state */}
+      <div
+        className={`absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center transition-opacity duration-300 ${
+          isActive ? "opacity-100" : "opacity-0"
+        }`}
+      >
         <Link
           to={`/generate/${template.id}`}
           className="bg-teal-500 text-white font-bold py-2 px-4 rounded-md hover:bg-teal-600 transition-colors"
@@ -57,12 +71,15 @@ function TemplateCard({ template, onDelete }) {
           Use Template
         </Link>
       </div>
-      
+
       {/* More Options Button and Dropdown Menu */}
       <div ref={menuRef} className="absolute top-2 right-2">
-        <button 
+        {/* Button: Visibility is also tied to the 'isActive' state */}
+        <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="p-1.5 rounded-full bg-gray-100 bg-opacity-50 text-gray-600 hover:bg-gray-200 opacity-0 group-hover:opacity-100 transition-all"
+          className={`p-1.5 rounded-full bg-gray-100 bg-opacity-50 text-gray-600 hover:bg-gray-200 transition-opacity ${
+            isActive ? "opacity-100" : "opacity-0"
+          }`}
         >
           <MoreVerticalIcon />
         </button>
@@ -70,10 +87,15 @@ function TemplateCard({ template, onDelete }) {
         {isMenuOpen && (
           <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 ring-1 ring-black ring-opacity-5">
             <div className="py-1">
-              <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Edit</a>
+              <a
+                href="#"
+                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Edit
+              </a>
               <button
                 onClick={() => {
-                  onDelete(template); // Pass the full template object to the handler
+                  onDelete(template);
                   setIsMenuOpen(false);
                 }}
                 className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
