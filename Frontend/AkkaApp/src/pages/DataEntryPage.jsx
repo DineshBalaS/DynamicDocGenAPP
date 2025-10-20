@@ -118,7 +118,7 @@ function DataEntryPage() {
     
     // Render the main form
     return (
-        <div className="max-w-4xl mx-auto py-8 px-4">
+        <div className="max-w-7xl mx-auto">
             <Link to="/" className="text-sm text-teal-600 hover:underline mb-4 inline-block">&larr; Back to Dashboard</Link>
             <h1 className="text-3xl font-bold text-gray-800">{template.name}</h1>
             <p className="text-gray-500 mt-1">Fill in the data below to generate your presentation.</p>
