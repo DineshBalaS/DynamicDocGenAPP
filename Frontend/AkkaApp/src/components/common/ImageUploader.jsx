@@ -43,7 +43,7 @@ function ImageUploader({ onUploadSuccess, placeholderName }) {
 
         try {
             const result = await uploadAsset(file);
-            onUploadSuccess(placeholderName, result.s3_key);
+            onUploadSuccess(placeholderName, result.s3_key, localPreviewUrl);
             setStatus('success');
         } catch (error) {
             setErrorMessage(error.message || 'Upload failed. Please try again.');

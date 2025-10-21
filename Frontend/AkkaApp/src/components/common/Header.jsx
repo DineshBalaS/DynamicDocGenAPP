@@ -11,7 +11,7 @@ function Header() {
   };
 
   return (
-    <header className="bg-white shadow-md sticky top-0 z-10">
+    <header className="bg-white shadow-md sticky top-0 z-50">
       <nav className="container mx-auto px-6 py-4 flex justify-between items-center">
         {/* App Logo and Title */}
         <Link to="/" className="flex items-center space-x-2">
