@@ -1,6 +1,7 @@
 import os
 import uuid
 import boto3
+import requests 
 from io import BytesIO
 from botocore.exceptions import ClientError
 from flask import current_app
@@ -85,6 +86,46 @@ class S3Service:
             # In a real app, you would log this error
             print(f"S3 Upload Error: {e}")
             raise S3UploadError(f"Failed to upload '{original_filename}' to S3.")
+        
+    def upload_file_from_url(self, image_url: str, prefix: str = "") -> str:
+        """
+        Downloads an image from a URL and uploads it to S3.
+
+        Args:
+            image_url: The URL of the image to download.
+            prefix: The prefix to add to the S3 key.
+
+        Returns:
+            The unique s3_key for the uploaded file.
+
+        Raises:
+            S3UploadError: If the download or upload fails.
+        """
+        try:
+            # It's good practice to use a timeout for external requests
+            response = requests.get(image_url, stream=True, timeout=10)
+            response.raise_for_status()  # Will raise an exception for 4xx/5xx responses
+
+            # Use a generic filename; the extension will be determined later
+            # A more robust solution could inspect the 'Content-Type' header
+            _, file_extension = os.path.splitext(image_url.split('?')[0]) # Basic extension extraction
+            if not file_extension:
+                file_extension = ".jpg" # Default if no extension found
+
+            s3_key = f"{prefix}{uuid.uuid4()}{file_extension}"
+
+            self.s3_client.upload_fileobj(
+                response.raw,
+                self.bucket_name,
+                s3_key
+            )
+            return s3_key
+        except requests.exceptions.RequestException as e:
+            print(f"Image download error from URL {image_url}: {e}")
+            raise S3UploadError(f"Failed to download image from the provided URL.")
+        except ClientError as e:
+            print(f"S3 Upload Error from URL: {e}")
+            raise S3UploadError("Failed to upload the downloaded image to S3.")
         
     def download_file_as_stream(self, s3_key: str) -> BytesIO:
         """Downloads an S3 object into an in-memory stream."""

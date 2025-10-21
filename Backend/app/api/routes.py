@@ -2,6 +2,7 @@ import json
 import os 
 import re
 import psycopg2
+import requests
 from psycopg2.extras import Json
 from flask import jsonify, request, send_file
 
@@ -294,3 +295,68 @@ def generate():
         # Catch-all for other errors, such as from the pptx-renderer library
         print(f"Unexpected error generating presentation for template {template_id}: {e}")
         return jsonify({"error": "An internal error occurred while generating the presentation."}), 500
+    
+@api_bp.route('/images/search', methods=['GET'])
+def search_images():
+    """
+    Endpoint to search for images from an external service.
+    This is a placeholder and should be connected to a real image search API.
+    """
+    query = request.args.get('q')
+    if not query:
+        return jsonify({"error": "A search query 'q' is required."}), 400
+
+    # --- Production Implementation ---
+    # In a real application, you would get an API key from your .env file
+    # and make a request to a service like Pexels, Unsplash, or Google Custom Search.
+    #
+    # Example using a hypothetical service:
+    # API_KEY = current_app.config.get('IMAGE_SEARCH_API_KEY')
+    # if not API_KEY:
+    #     return jsonify({"error": "Image search service is not configured."}), 500
+    #
+    # try:
+    #     headers = {'Authorization': f'Bearer {API_KEY}'}
+    #     response = requests.get(f'https://api.imagesearch.com/v1/search?query={query}', headers=headers)
+    #     response.raise_for_status()
+    #     return jsonify(response.json()['results'])
+    # except requests.exceptions.RequestException as e:
+    #     print(f"Image search API error: {e}")
+    #     return jsonify({"error": "Failed to fetch images from the external provider."}), 503
+    
+    # --- Placeholder Implementation (for demonstration) ---
+    # We will return a static, pre-defined list of images to simulate an API response.
+    # This allows frontend development to proceed without a real API key.
+    mock_results = [
+        {"id": 1, "url": "https://images.pexels.com/photos/3225517/pexels-photo-3225517.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1", "alt": "A beautiful landscape"},
+        {"id": 2, "url": "https://images.pexels.com/photos/167699/pexels-photo-167699.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1", "alt": "A foggy forest"},
+        {"id": 3, "url": "https://images.pexels.com/photos/2662116/pexels-photo-2662116.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1", "alt": "Moraine Lake"},
+        {"id": 4, "url": "https://images.pexels.com/photos/3408744/pexels-photo-3408744.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1", "alt": "Northern lights"},
+        {"id": 5, "url": "https://images.pexels.com/photos/2387873/pexels-photo-2387873.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1", "alt": "Canyon"},
+        {"id": 6, "url": "https://images.pexels.com/photos/417074/pexels-photo-417074.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1", "alt": "Mountain reflection in lake"}
+    ]
+    return jsonify(mock_results)
+
+@api_bp.route('/assets/upload_from_url', methods=['POST'])
+def upload_asset_from_url():
+    """
+    Endpoint to download an image from a URL and upload it to S3.
+    """
+    data = request.get_json()
+    image_url = data.get('url')
+
+    if not image_url:
+        return jsonify({"error": "Image URL is required."}), 400
+    
+    try:
+        s3 = get_s3()
+        s3_key = s3.upload_file_from_url(image_url, prefix="temp/")
+        return jsonify({"s3_key": s3_key}), 201
+
+    except S3UploadError as e:
+        print(f"S3 Upload from URL failed: {e}")
+        return jsonify({"error": str(e)}), 500
+    except Exception as e:
+        print(f"Unexpected error uploading from URL: {e}")
+        return jsonify({"error": "An unexpected server error occurred."}), 500
+    

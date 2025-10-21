@@ -148,3 +148,37 @@ export const deleteTemplate = async (templateId) => {
     throw new Error(error.response?.data?.error || 'Failed to delete template.');
   }
 };
+
+/**
+ * Searches for images using the backend service.
+ * @param {string} query - The search term.
+ * @returns {Promise<Array>} A promise that resolves to an array of image objects.
+ */
+export const searchImages = async (query) => {
+    try {
+        const response = await apiClient.get('/api/images/search', {
+            params: { q: query }
+        });
+        return response.data;
+    } catch (error) {
+        console.error('Image search failed:', error.response?.data || error.message);
+        throw new Error(error.response?.data?.error || 'Failed to search for images.');
+    }
+};
+
+/**
+ * Uploads an image from a URL via the backend.
+ * @param {string} imageUrl - The URL of the image to upload.
+ * @returns {Promise<Object>} A promise that resolves to an object containing the s3_key.
+ */
+export const uploadImageFromUrl = async (imageUrl) => {
+    try {
+        const response = await apiClient.post('/api/assets/upload_from_url', {
+            url: imageUrl
+        });
+        return response.data;
+    } catch (error) {
+        console.error('Image upload from URL failed:', error.response?.data || error.message);
+        throw new Error(error.response?.data?.error || 'Failed to upload the selected image.');
+    }
+};

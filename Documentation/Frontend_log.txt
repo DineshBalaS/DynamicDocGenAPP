@@ -170,3 +170,96 @@ File Download: The generatePresentation function must be configured to handle a 
 Verification:
 
 ✅ End-to-End Test: Select a template from the dashboard. Fill out the dynamic form, including uploading an image. Click "Generate Presentation." A loading spinner should appear, followed by a browser download prompt for the finished .pptx file. Open the downloaded file to confirm all placeholders were correctly filled.
+
+Test Plan: Image Search Feature
+1. UI and Visual Testing (The "Look and Feel" Test)
+This section focuses on ensuring the user interface looks correct in all states.
+
+Initial State:
+
+Navigate to the DataEntryPage.
+
+Verify that the ImageUploader component correctly displays two distinct buttons: "Upload Image" and "Search Image".
+
+Modal Appearance:
+
+Click the "Search Image" button.
+
+Verify the modal opens, is centered, and has the title "Search for an Image".
+
+Verify it contains a search input field and a "Search" icon button.
+
+Verify the footer contains a "Cancel" and a disabled "Confirm and Upload" button.
+
+Component States:
+
+Perform a search.
+
+Verify that a skeleton loader (the pulsing grey boxes) appears while waiting for results.
+
+Search for a term with no results (e.g., "asdfghjkl"). Verify the UI shows a message like "No images found for...".
+
+Click on an image from the results. Verify it is highlighted with a distinct border (a blue or teal ring).
+
+2. Functional "Happy Path" Testing (The "Does it Work?" Test)
+This is the main end-to-end test to ensure the feature works as intended under normal conditions.
+
+Navigate to the DataEntryPage.
+
+Click the "Search Image" button to open the modal.
+
+Type a valid search term (e.g., "Modern building") into the search bar and press Enter or click the search icon.
+
+Verify that a grid of images appears.
+
+Click on a single image to select it. Verify it becomes highlighted.
+
+Click the "Confirm and Upload" button.
+
+Verify the modal closes.
+
+Verify the ImageUploader component on the DataEntryPage now shows a preview of the selected image.
+
+Fill out all other required text fields on the form.
+
+Click "Review and Generate" and proceed to the ReviewPage.
+
+Verify that the thumbnail of the image you selected from the web is correctly displayed on the review page.
+
+3. Edge Case and Negative Testing (The "What If?" Test)
+This section tests how the feature handles non-standard user behavior.
+
+Empty Search: Click the search button with an empty input field. Verify no search is performed.
+
+Change of Mind: Open the modal, select an image, but then click "Cancel". Verify the modal closes and the ImageUploader is unchanged.
+
+Click Outside: Open the modal and click the faded area outside of it. Verify the modal closes.
+
+Reselection: Perform a search, select one image, then click a different image. Verify the selection highlight moves to the new image.
+
+Regression Test: After testing the search feature, verify that the original "Upload Image" button still works correctly by selecting and uploading a file directly from your computer.
+
+4. Error Handling Testing (The "What Breaks?" Test)
+This is a critical step for a production-ready feature. Use your browser's Developer Tools (F12 > Network tab) to simulate network failures.
+
+Search Fails:
+
+In the Network tab, find a way to block requests. Right-click the search?q=... request and select "Block request URL".
+
+Perform a new search.
+
+Verify that the image grid area shows a clear error message (e.g., "Failed to fetch images.").
+
+Upload Fails:
+
+Unblock the search request and perform a successful search.
+
+Now, block the /api/assets/upload_from_url request URL.
+
+Select an image and click "Confirm and Upload".
+
+Verify the modal does not close.
+
+Verify a clear error message appears in the modal's footer (e.g., "Failed to upload the selected image.").
+
+Completing this test plan will give you high confidence that the feature is clean, robust, and ready for your users.
