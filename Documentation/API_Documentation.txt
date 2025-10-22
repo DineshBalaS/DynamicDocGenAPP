@@ -138,3 +138,161 @@ Files uploaded here are saved to a `temp/` directory in the S3 bucket and are in
         ```
 
 
+GET /api/templates/<int:template_id>
+
+This endpoint retrieves the full details for a single template, including its ID, name, creation date, and its full list of placeholders. This is used when a user selects a template to view or to begin the generation process.
+
+Request
+Method: GET
+
+Path Parameters:
+
+template_id (integer): The unique identifier of the template to retrieve.
+
+Responses
+✅ Success Response
+Status Code: 200 OK
+
+Content: A JSON object containing the complete details for the requested template.
+
+Example Body:
+
+JSON
+
+{
+    "id": 12,
+    "name": "Monthly Client Report",
+    "created_at": "2025-10-20T14:22:01Z",
+    "placeholders": [
+        {"name": "client_name", "type": "text"},
+        {"name": "month", "type": "text"},
+        {"name": "cover_image", "type": "image"}
+    ]
+}
+❌ Error Responses
+Status Code: 404 Not Found
+
+Reason: The template with the specified template_id does not exist or has been deleted.
+
+Example Body:
+
+JSON
+
+{
+    "error": "Template not found."
+}
+Status Code: 500 Internal Server Error
+
+Reason: A database error occurred during the query.
+
+Example Body:
+
+JSON
+
+{
+    "error": "A database error occurred."
+}
+## API Endpoint: Search Images
+GET /api/images/search
+
+This endpoint provides a way to search for images from an external service. It is used to populate an image search modal for image-type placeholders.
+
+Note: This endpoint is currently a placeholder and returns a static, pre-defined list of images to simulate an API response.
+
+Request
+Method: GET
+
+Query Parameters:
+
+q (string): The search query (e.g., "nature", "office").
+
+Validation
+The request must contain a search query parameter q.
+
+Responses
+✅ Success Response
+Status Code: 200 OK
+
+Content: A JSON array of mock image objects.
+
+Example Body:
+
+JSON
+
+[
+    {
+        "id": 1,
+        "url": "https://images.pexels.com/photos/3225517/pexels-photo-3225517.jpeg?...",
+        "alt": "A beautiful landscape"
+    },
+    {
+        "id": 2,
+        "url": "https://images.pexels.com/photos/167699/pexels-photo-167699.jpeg?...",
+        "alt": "A foggy forest"
+    }
+]
+❌ Error Responses
+Status Code: 400 Bad Request
+
+Reason: The required q query parameter was not provided.
+
+Example Body:
+
+JSON
+
+{
+    "error": "A search query 'q' is required."
+}
+## API Endpoint: Upload Asset from URL
+POST /api/assets/upload_from_url
+
+This endpoint downloads an image directly from a public URL and uploads it to the S3 temp/ directory. This is an alternative to a direct file upload, used for images selected from the image search.
+
+Request
+Method: POST
+
+Body: application/json
+
+Fields:
+
+url (string): The public URL of the image to download and save.
+
+Validation
+The request body must contain a url field.
+
+Responses
+✅ Success Response
+Status Code: 201 Created
+
+Content: A JSON object containing the unique S3 key for the newly uploaded asset. This key can be used in the /api/generate request.
+
+Example Body:
+
+JSON
+
+{
+    "s3_key": "temp/c4a5b6d7-e8f9-1234-a5b6-c7d8e9f01234.jpeg"
+}
+❌ Error Responses
+Status Code: 400 Bad Request
+
+Reason: The url field is missing from the JSON body.
+
+Example Body:
+
+JSON
+
+{
+    "error": "Image URL is required."
+}
+Status Code: 500 Internal Server Error
+
+Reason: An error occurred on the server, either while downloading the image from the URL or uploading the file to S3 storage.
+
+Example Body:
+
+JSON
+
+{
+    "error": "An unexpected server error occurred."
+}
