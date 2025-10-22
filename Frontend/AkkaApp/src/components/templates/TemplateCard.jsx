@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
+import fallbackImage from '../../assets/default-ppt-thumbnail.png'; // <-- CORRECTED PATH
 
 const MoreVerticalIcon = () => (
   <svg
@@ -48,8 +49,15 @@ function TemplateCard({ template, onDelete }) {
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Thumbnail and card content divs */}
-      <div className="h-36 bg-gray-100 flex items-center justify-center">
-        <span className="text-gray-400 text-sm">Template Preview</span>
+      <div className="h-36 bg-gray-100 flex items-center justify-center overflow-hidden">
+        {" "}
+        {/* Added overflow-hidden */}
+        {/* Always render the fallback image */}
+        <img
+          src={fallbackImage}
+          alt={`${template.name} preview`}
+          className="w-full h-full object-cover" // Use object-cover for neat filling
+        />
       </div>
       <div className="p-4">
         <h3 className="font-bold text-gray-800 truncate">{template.name}</h3>

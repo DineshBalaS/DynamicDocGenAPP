@@ -328,12 +328,12 @@ def search_images():
     # We will return a static, pre-defined list of images to simulate an API response.
     # This allows frontend development to proceed without a real API key.
     mock_results = [
-        {"id": 1, "url": "https://images.pexels.com/photos/3225517/pexels-photo-3225517.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1", "alt": "A beautiful landscape"},
-        {"id": 2, "url": "https://images.pexels.com/photos/167699/pexels-photo-167699.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1", "alt": "A foggy forest"},
-        {"id": 3, "url": "https://images.pexels.com/photos/2662116/pexels-photo-2662116.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1", "alt": "Moraine Lake"},
-        {"id": 4, "url": "https://images.pexels.com/photos/3408744/pexels-photo-3408744.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1", "alt": "Northern lights"},
-        {"id": 5, "url": "https://images.pexels.com/photos/2387873/pexels-photo-2387873.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1", "alt": "Canyon"},
-        {"id": 6, "url": "https://images.pexels.com/photos/417074/pexels-photo-417074.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1", "alt": "Mountain reflection in lake"}
+        {"id": 1, "url": "https://images.pexels.com/photos/1029599/pexels-photo-1029599.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1", "alt": "Tower Bridge London during nighttime"},
+        {"id": 2, "url": "https://images.pexels.com/photos/3639507/pexels-photo-3639507.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1", "alt": "The Shard London skyscraper"},
+        {"id": 3, "url": "https://images.pexels.com/photos/17160711/pexels-photo-17160711.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1", "alt": "Houses of Parliament and Big Ben London"},
+        {"id": 4, "url": "https://images.pexels.com/photos/3757139/pexels-photo-3757139.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1", "alt": "Modern architecture building Liverpool"},
+        {"id": 5, "url": "https://images.pexels.com/photos/18245859/pexels-photo-18245859.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1", "alt": "Buckingham Palace London"},
+        {"id": 6, "url": "https://images.pexels.com/photos/9964661/pexels-photo-9964661.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1", "alt": "Edinburgh Castle Scotland"}
     ]
     return jsonify(mock_results)
 

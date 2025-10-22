@@ -1,11 +1,10 @@
 // src/components/common/ImageSearchModal.jsx
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react"; // Ensure useEffect is imported
 import { searchImages, uploadImageFromUrl } from "../../api/templateService";
 import Spinner from "../ui/spinner";
 
-// --- Helper Components for different states ---
-
+// --- Helper Components ---
 const SearchIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -38,31 +37,49 @@ const ImageGridSkeleton = () => (
 );
 
 // --- Main Component ---
-
 function ImageSearchModal({ isOpen, onClose, onImageSelect }) {
   const [query, setQuery] = useState("");
   const [images, setImages] = useState([]);
   const [selectedImageUrl, setSelectedImageUrl] = useState(null);
-
-  const [searchStatus, setSearchStatus] = useState("idle"); // idle, loading, success, error
-  const [uploadStatus, setUploadStatus] = useState("idle"); // idle, uploading, success, error
-
+  const [searchStatus, setSearchStatus] = useState("idle"); // idle, loading, success, empty, error
+  const [uploadStatus, setUploadStatus] = useState("idle"); // idle, uploading, error
   const [error, setError] = useState("");
+
+  // Reset state when the modal opens or closes - Correctly implemented
+  useEffect(() => {
+    if (!isOpen) {
+      // Reset everything when modal closes to be clean next time
+      setQuery("");
+      setImages([]);
+      setSelectedImageUrl(null);
+      setSearchStatus("idle");
+      setUploadStatus("idle");
+      setError("");
+    } else {
+      // Ensure it starts clean when opened
+      setSearchStatus("idle");
+      setError("");
+    }
+  }, [isOpen]); // Dependency array includes isOpen
 
   const handleSearch = async (e) => {
     e.preventDefault();
-    if (!query.trim()) return;
+    const trimmedQuery = query.trim();
+    if (!trimmedQuery) return;
+
+    console.log(`Searching for: "${trimmedQuery}"`); // Good for debugging
 
     setSearchStatus("loading");
     setError("");
-    setImages([]);
-    setSelectedImageUrl(null);
+    setImages([]); // Clear previous images
+    setSelectedImageUrl(null); // Clear previous selection
 
     try {
-      const results = await searchImages(query);
+      const results = await searchImages(trimmedQuery); // Use trimmedQuery
       setImages(results);
       setSearchStatus(results.length > 0 ? "success" : "empty");
     } catch (err) {
+      console.error("Image search failed:", err); // Good error logging
       setError(err.message || "Failed to fetch images.");
       setSearchStatus("error");
     }
@@ -75,28 +92,19 @@ function ImageSearchModal({ isOpen, onClose, onImageSelect }) {
     setError("");
 
     try {
-      // 1. Upload the image via URL to our backend
       const uploadResult = await uploadImageFromUrl(selectedImageUrl);
-
-      // 2. Pass the s3_key and the original URL (for preview) back to the parent
       onImageSelect(uploadResult.s3_key, selectedImageUrl);
-
-      setUploadStatus("success");
-      handleClose(); // Close modal on success
+      // No need to set uploadStatus here, handleClose resets it
+      handleClose(); // Close modal on successful selection and upload trigger
     } catch (err) {
+      console.error("Upload from URL failed:", err); // Good error logging
       setError(err.message || "Failed to upload the selected image.");
-      setUploadStatus("error");
+      setUploadStatus("error"); // Keep modal open to show error
     }
   };
 
-  // Reset state when the modal is closed to ensure it's clean for the next open
+  // Cleanly calls the parent onClose handler
   const handleClose = () => {
-    setQuery("");
-    setImages([]);
-    setSelectedImageUrl(null);
-    setSearchStatus("idle");
-    setUploadStatus("idle");
-    setError("");
     onClose();
   };
 
@@ -114,17 +122,17 @@ function ImageSearchModal({ isOpen, onClose, onImageSelect }) {
       {/* Overlay background */}
       <div
         className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
-        onClick={handleClose}
+        onClick={handleClose} // Allows closing via overlay click
       ></div>
 
+      {/* Modal Panel */}
       <div className="fixed inset-0 z-10 w-screen overflow-y-auto">
         <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-          {/* Modal Panel Container - Styled like the original simple Modal */}
           <div
             className="relative flex flex-col transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg max-h-[80vh]"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()} // Prevents closing when clicking inside
           >
-            {/* 1. Modal Header (Simple Title) */}
+            {/* Header */}
             <div className="flex-shrink-0 bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4 border-b border-gray-200">
               <h3
                 className="text-lg font-semibold leading-6 text-gray-900 text-center"
@@ -134,8 +142,9 @@ function ImageSearchModal({ isOpen, onClose, onImageSelect }) {
               </h3>
             </div>
 
-            {/* 2. Modal Body (Search Content) */}
+            {/* Body */}
             <div className="flex-grow min-h-0 space-y-4 p-6 overflow-y-auto">
+              {/* Search Form */}
               <form
                 onSubmit={handleSearch}
                 className="flex items-center space-x-2"
@@ -145,18 +154,23 @@ function ImageSearchModal({ isOpen, onClose, onImageSelect }) {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="e.g., Nature, buildings, etc."
-                  className="flex-grow px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500 transition" // Simple styling
+                  className="flex-grow px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500 transition"
+                  disabled={searchStatus === "loading"} // Good: Disable input while loading
                 />
                 <button
                   type="submit"
-                  disabled={searchStatus === "loading"}
+                  disabled={searchStatus === "loading" || !query.trim()} // Good: Disable if loading or query empty
                   className="p-2.5 bg-teal-600 text-white rounded-md hover:bg-teal-700 disabled:bg-gray-400 transition"
+                  aria-label="Search images" // Good: Accessibility
                 >
-                  <SearchIcon />
+                  {searchStatus === "loading" ? <Spinner /> : <SearchIcon />}
                 </button>
               </form>
 
-              <div className="">
+              {/* Results Area */}
+              <div className="min-h-[200px]">
+                {" "}
+                {/* Good: Minimum height prevents layout collapse */}
                 {searchStatus === "loading" && <ImageGridSkeleton />}
                 {searchStatus === "idle" && (
                   <EmptyState message="Search for images to get started." />
@@ -169,7 +183,7 @@ function ImageSearchModal({ isOpen, onClose, onImageSelect }) {
                   <div className="grid grid-cols-3 gap-4">
                     {images.map((img) => (
                       <div
-                        key={img.id}
+                        key={img.id} // Assumes IDs from API are unique
                         className={`relative aspect-square rounded-lg overflow-hidden cursor-pointer group transition-all duration-200
                                                     ${
                                                       selectedImageUrl ===
@@ -192,22 +206,19 @@ function ImageSearchModal({ isOpen, onClose, onImageSelect }) {
               </div>
             </div>
 
-            {/* 3. Modal Footer (Simple Buttons) */}
+            {/* Footer */}
             <div className="flex-shrink-0 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 border-t border-gray-200">
               <button
                 type="button"
                 onClick={handleConfirmAndUpload}
-                disabled={!selectedImageUrl || uploadStatus === "uploading"}
+                disabled={!selectedImageUrl || uploadStatus === "uploading"} // Good: Disable logic
                 className="relative inline-flex w-full justify-center items-center rounded-md bg-teal-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-teal-700 disabled:bg-gray-400 sm:ml-3 sm:w-auto min-w-[6rem]"
               >
-                {/* Spinner floats on top */}
                 {uploadStatus === "uploading" && (
                   <div className="absolute inset-0 flex items-center justify-center">
                     <Spinner />
                   </div>
                 )}
-
-                {/* Text provides the button's width but becomes invisible */}
                 <span
                   className={
                     uploadStatus === "uploading" ? "opacity-0" : "opacity-100"
@@ -223,8 +234,9 @@ function ImageSearchModal({ isOpen, onClose, onImageSelect }) {
               >
                 Cancel
               </button>
+              {/* Display upload error in the footer */}
               {uploadStatus === "error" && (
-                <p className="mt-3 text-sm text-red-600 sm:mt-0 sm:mr-auto">
+                <p className="mt-3 text-sm text-red-600 sm:mt-0 sm:mr-auto sm:self-center">
                   {error}
                 </p>
               )}
