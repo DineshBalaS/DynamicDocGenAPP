@@ -4,7 +4,7 @@ import re
 import psycopg2
 import requests
 from psycopg2.extras import Json
-from flask import jsonify, request, send_file
+from flask import jsonify, request, send_file, current_app
 
 from . import api_bp
 from app import get_db, get_s3
@@ -299,43 +299,61 @@ def generate():
 @api_bp.route('/images/search', methods=['GET'])
 def search_images():
     """
-    Endpoint to search for images from an external service.
-    This is a placeholder and should be connected to a real image search API.
+    Endpoint to search for images from the Pexels API.
     """
     query = request.args.get('q')
     if not query:
         return jsonify({"error": "A search query 'q' is required."}), 400
 
-    # --- Production Implementation ---
-    # In a real application, you would get an API key from your .env file
-    # and make a request to a service like Pexels, Unsplash, or Google Custom Search.
-    #
-    # Example using a hypothetical service:
-    # API_KEY = current_app.config.get('IMAGE_SEARCH_API_KEY')
-    # if not API_KEY:
-    #     return jsonify({"error": "Image search service is not configured."}), 500
-    #
-    # try:
-    #     headers = {'Authorization': f'Bearer {API_KEY}'}
-    #     response = requests.get(f'https://api.imagesearch.com/v1/search?query={query}', headers=headers)
-    #     response.raise_for_status()
-    #     return jsonify(response.json()['results'])
-    # except requests.exceptions.RequestException as e:
-    #     print(f"Image search API error: {e}")
-    #     return jsonify({"error": "Failed to fetch images from the external provider."}), 503
+    # 1. Get the API key securely from application config
+    #    (NEVER hardcode keys in your code)
+    api_key = current_app.config.get('PEXELS_API_KEY')
+    if not api_key:
+        # Log this error for the developer
+        current_app.logger.error("PEXELS_API_KEY is not configured.")
+        # Return a generic error to the user
+        return jsonify({"error": "Image search service is not configured."}), 500
+
+    # 2. Prepare and make the API request
+    pexel_api_url = "https://api.pexels.com/v1/search"
+    headers = {
+        "Authorization": api_key
+    }
+    params = {
+        "query": query,
+        "per_page": 15  # Request a reasonable number of images
+    }
+
+    try:
+        response = requests.get(pexel_api_url, headers=headers, params=params, timeout=10)
+        # Raise an exception for bad status codes (4xx or 5xx)
+        response.raise_for_status() 
+        
+        data = response.json()
+
+        # 3. Transform Pexels data to match your frontend's expected format
+        # Pexels returns photos in a 'photos' list.
+        # We map 'id', 'src.large', and 'alt' to your 'id', 'url', 'alt'.
+        formatted_results = [
+            {
+                "id": photo.get('id'),
+                "url": photo.get('src', {}).get('large', ''), # Safely access nested keys
+                "alt": photo.get('alt', 'Pexels image for ' + query) # Provide a fallback alt
+            }
+            for photo in data.get('photos', []) # Safely get the 'photos' list
+        ]
+        
+        return jsonify(formatted_results)
+
+    except requests.exceptions.HTTPError as http_err:
+        # Handle specific HTTP errors (like 401 Unauthorized, 429 Too Many Requests)
+        current_app.logger.error(f"Pexels API HTTP error: {http_err} - Response: {response.text}")
+        return jsonify({"error": f"Error communicating with image provider: {http_err}"}), response.status_code
     
-    # --- Placeholder Implementation (for demonstration) ---
-    # We will return a static, pre-defined list of images to simulate an API response.
-    # This allows frontend development to proceed without a real API key.
-    mock_results = [
-        {"id": 1, "url": "https://images.pexels.com/photos/1029599/pexels-photo-1029599.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1", "alt": "Tower Bridge London during nighttime"},
-        {"id": 2, "url": "https://images.pexels.com/photos/3639507/pexels-photo-3639507.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1", "alt": "The Shard London skyscraper"},
-        {"id": 3, "url": "https://images.pexels.com/photos/17160711/pexels-photo-17160711.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1", "alt": "Houses of Parliament and Big Ben London"},
-        {"id": 4, "url": "https://images.pexels.com/photos/3757139/pexels-photo-3757139.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1", "alt": "Modern architecture building Liverpool"},
-        {"id": 5, "url": "https://images.pexels.com/photos/18245859/pexels-photo-18245859.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1", "alt": "Buckingham Palace London"},
-        {"id": 6, "url": "https://images.pexels.com/photos/9964661/pexels-photo-9964661.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1", "alt": "Edinburgh Castle Scotland"}
-    ]
-    return jsonify(mock_results)
+    except requests.exceptions.RequestException as e:
+        # Handle network errors (timeout, connection error, etc.)
+        current_app.logger.error(f"Pexels API request failed: {e}")
+        return jsonify({"error": "Failed to fetch images from the external provider."}), 503 # 503 Service Unavailable
 
 @api_bp.route('/assets/upload_from_url', methods=['POST'])
 def upload_asset_from_url():

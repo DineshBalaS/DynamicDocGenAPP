@@ -24,3 +24,7 @@ class Config:
     AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
     AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
     AWS_REGION = os.environ.get('AWS_REGION') or 'us-east-1' # Default region
+    
+    # image api
+    # Pexels API Configuration
+    PEXELS_API_KEY = os.environ.get('PEXELS_API_KEY')
