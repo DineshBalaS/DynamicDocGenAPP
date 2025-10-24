@@ -526,3 +526,115 @@ Responsive: Filtering happens instantly in the user's browser.
 -----
 
 This report covers all the significant changes applied to `DashboardPage.jsx` during this feature implementation.
+
+Okay, aiming for a **smooth, flowing slide-and-fade** effect that's noticeable but **simple, clean, and production-friendly**.
+
+Based on your components and requirements, using the **Framer Motion** library is the ideal approach. It integrates seamlessly with React and React Router, making complex animations like slide-and-fade relatively straightforward while remaining performant.
+
+Here’s the plan:
+
+-----
+
+## 1\. Install Framer Motion
+
+First, add the library to your frontend project:
+
+```bash
+npm install framer-motion
+```
+
+-----
+
+## 2\. Modify `MainLayout.jsx` to Orchestrate Animations
+
+We'll use Framer Motion's `AnimatePresence` component here. It detects when a direct child component enters or leaves the React tree and allows us to animate those transitions.
+
+```diff
+// src/components/layout/MainLayout.jsx
+
+import React from 'react';
+- import { Outlet } from 'react-router-dom';
++ import { Outlet, useLocation } from 'react-router-dom';
++ import { motion, AnimatePresence } from 'framer-motion';
+import Header from '../common/Header';
+
++// Define the animation variants
++ const pageVariants = {
++   initial: {
++     opacity: 0,
++     x: '100vw', // Start off-screen to the right
++   },
++   in: {
++     opacity: 1,
++     x: 0, // Animate to on-screen
++   },
++   out: {
++     opacity: 0,
++     x: '-100vw', // Animate off-screen to the left
++   },
++ };
++
++// Define the transition properties
++ const pageTransition = {
++   type: 'tween', // Smooth interpolation
++   ease: 'anticipate', // Easing function for a slightly bouncy feel
++   duration: 0.4, // Animation duration in seconds
++ };
+
+
+function MainLayout() {
++ const location = useLocation(); // Get current location for the key prop
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col"> {/* Added flex flex-col */}
+      <Header />
+      {/* AnimatePresence needs to wrap the part that changes */}
++     <AnimatePresence mode="wait"> {/* 'wait' ensures exit animation finishes first */}
+        <main className="container mx-auto px-6 py-8 flex-grow"> {/* Added flex-grow */}
+          {/* Child routes will be rendered here */}
+          {/* Add motion.div wrapper with key, variants, and transition */}
++         <motion.div
++           key={location.pathname} // Unique key tells AnimatePresence when page changes
++           initial="initial"
++           animate="in"
++           exit="out"
++           variants={pageVariants}
++           transition={pageTransition}
++         >
+            <Outlet />
++         </motion.div>
+        </main>
++     </AnimatePresence>
+    </div>
+  );
+}
+
+export default MainLayout;
+
+```
+
+-----
+
+## 3\. Explanation
+
+  * **`AnimatePresence`**: This component from Framer Motion detects when its direct children are added or removed. We use `mode="wait"` so the old page finishes animating *out* before the new page animates *in*.
+  * **`useLocation`**: We get the current URL `pathname` from React Router.
+  * **`motion.div`**: This wraps the `<Outlet />`. It's the component that actually gets animated.
+      * **`key={location.pathname}`**: This is crucial\! It tells `AnimatePresence` that the component *itself* has changed when the URL changes, triggering the enter/exit animations.
+      * **`initial`, `animate`, `exit`**: These props tell `motion.div` which state from the `pageVariants` object to use for each phase (entering, visible, exiting).
+      * **`variants={pageVariants}`**: Defines the styles for each animation state (`initial`, `in`, `out`). We set `opacity` for the fade and `x` (horizontal position) for the slide.
+      * **`transition={pageTransition}`**: Defines *how* the animation happens (duration, easing type). `tween` with `anticipate` easing often gives a nice, smooth but slightly dynamic feel.
+  * **CSS Changes**: Added `flex flex-col` to the outer div and `flex-grow` to `main` to ensure the layout behaves correctly, especially if pages have different heights.
+
+-----
+
+## Why this plan fits your requirements:
+
+  * **Smooth and Flowing**: Framer Motion uses optimized animations (often hardware-accelerated), and the chosen `tween` and `anticipate` easing contribute to this feel.
+  * **Slide and Fade**: The `pageVariants` explicitly define changes in both `opacity` (fade) and `x` position (slide).
+  * **Noticeable but Simple**: A `0.4` second duration is quick but clearly visible. The animation logic is contained and doesn't complicate page components.
+  * **Clean & Less Complex**: Framer Motion's declarative approach (`AnimatePresence`, `motion.div`, `variants`) keeps the animation logic tidy and separate from your page logic.
+  * **Robust & Production Friendly**: It's a widely used, well-maintained library designed for performance in React apps. The impact on bundle size is reasonable.
+  * **Cost-Effective**: All animation happens client-side; no backend resources are involved.
+
+This setup provides the slide-and-fade effect specifically when navigating between routes rendered within your `MainLayout`.
