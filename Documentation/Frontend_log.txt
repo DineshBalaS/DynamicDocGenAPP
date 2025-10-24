@@ -263,3 +263,266 @@ Verify the modal does not close.
 Verify a clear error message appears in the modal's footer (e.g., "Failed to upload the selected image.").
 
 Completing this test plan will give you high confidence that the feature is clean, robust, and ready for your users.
+
+a client-side filtering approach seems like the best fit. We'll fetch all templates once when the dashboard loads and then use React to filter the displayed list based on the user's search input directly in the browser.
+
+Here’s the plan:
+
+1. Frontend Changes (DashboardPage.jsx)
+Add Search State:
+
+Introduce a new state variable to hold the user's search query:
+
+JavaScript
+
+const [searchQuery, setSearchQuery] = useState('');
+Add Filtered List State:
+
+Introduce another state variable to hold the templates that match the search query. We'll keep the original templates state to hold the full list fetched from the API.
+
+JavaScript
+
+const [filteredTemplates, setFilteredTemplates] = useState([]);
+Add Search Input UI:
+
+Place a text input field near the top of the dashboard (e.g., below the header, above the grid).
+
+Control its value using the searchQuery state.
+
+Use an onChange handler to update searchQuery as the user types.
+
+JavaScript
+
+<input
+  type="text"
+  placeholder="Search templates..."
+  value={searchQuery}
+  onChange={(e) => setSearchQuery(e.target.value)}
+  className="mb-4 p-2 border rounded w-full sm:w-1/2 md:w-1/3" // Example styling
+/>
+Modify Initial Data Fetch (useEffect):
+
+When getTemplates successfully fetches data:
+
+Update the main templates state with the full list (as it does now).
+
+Also, update the filteredTemplates state with the same full list initially.
+
+Implement Filtering Logic (useEffect):
+
+Add a new useEffect hook that depends on searchQuery and the main templates list.
+
+Inside this effect:
+
+If searchQuery is empty, set filteredTemplates to the full templates list.
+
+If searchQuery has text, filter the templates array. Check if each template.name (case-insensitive) includes the searchQuery.
+
+Update filteredTemplates with the result of this filtering.
+
+JavaScript
+
+useEffect(() => {
+  if (!searchQuery) {
+    setFilteredTemplates(templates); // Show all if search is empty
+  } else {
+    const lowerCaseQuery = searchQuery.toLowerCase();
+    const filtered = templates.filter(template =>
+      template.name.toLowerCase().includes(lowerCaseQuery)
+    );
+    setFilteredTemplates(filtered);
+  }
+}, [searchQuery, templates]); // Re-run when search or original list changes
+Update Rendering:
+
+Change the part that maps templates to render TemplateCard components. Instead of mapping templates, map over filteredTemplates.
+
+JavaScript
+
+ // Old: {templates.map((template) => ( ... ))}
+ // New:
+ {filteredTemplates.map((template) => (
+   <TemplateCard key={template.id} template={template} onDelete={openDeleteModal} />
+ ))}
+Handle "No Results":
+
+Modify the renderContent function. If status is 'success' but filteredTemplates.length is 0 and searchQuery is not empty, display a "No templates found matching your search." message instead of the EmptyState component.
+
+2. Backend Changes (routes.py) & API Service (templateService.js)
+No changes needed! 🎉
+
+The existing GET /api/templates endpoint already returns all non-deleted templates.
+
+The getTemplates function in templateService.js already fetches this complete list.
+
+Why this approach fits your requirements:
+Clean & Less Complex: It keeps the logic contained mostly within the DashboardPage component. No complex backend search or database indexing is needed for this basic filtering.
+
+Robust: Works reliably as long as the number of templates isn't excessively large (e.g., many thousands, which is unlikely for a personal tool).
+
+Cost-Effective & Production Friendly: Minimizes backend load by fetching data only once per page load/refresh. This saves compute resources and potential costs.
+
+Optimistic Update Friendly: Deleting a template already updates the local state (templates). The filtering logic will automatically work correctly with the updated list without needing extra API calls.
+
+Responsive: Filtering happens instantly in the user's browser.
+
+-----
+
+## Code Report: Dashboard Search Feature Implementation
+
+**File:** `src/pages/DashboardPage.jsx`
+
+**Goal:** Add a client-side search functionality to filter the displayed template cards based on user input, with responsive UI adjustments and hover effects.
+
+-----
+
+### Step 1: Add State Variables
+
+  * **Purpose:** Introduce state to manage the search input text and the list of templates to be displayed after filtering.
+  * **Code Added:**
+    ```jsx
+    const [searchQuery, setSearchQuery] = useState('');
+    const [filteredTemplates, setFilteredTemplates] = useState([]);
+    ```
+
+-----
+
+### Step 2: Initialize Filtered Templates After Fetching
+
+  * **Purpose:** Ensure all templates are displayed initially when data is successfully fetched.
+  * **Code Added (inside the `fetchTemplates`'s `try` block):**
+    ```diff
+      const data = await getTemplates();
+      setTemplates(data);
+    + setFilteredTemplates(data); // Initialize filtered list
+      setStatus('success');
+    ```
+
+-----
+
+### Step 3: Implement Filtering Logic
+
+  * **Purpose:** Add a `useEffect` hook to update the `filteredTemplates` list whenever the `searchQuery` or the original `templates` list changes.
+  * **Code Added:**
+    ```jsx
+    useEffect(() => {
+      if (!searchQuery) {
+        setFilteredTemplates(templates);
+      } else {
+        const lowerCaseQuery = searchQuery.toLowerCase();
+        const filtered = templates.filter(template =>
+          template.name.toLowerCase().includes(lowerCaseQuery)
+        );
+        setFilteredTemplates(filtered);
+      }
+    }, [searchQuery, templates]);
+    ```
+
+-----
+
+### Step 4: Add Search Input UI
+
+  * **Purpose:** Add the text input field for the search bar, controlled by the `searchQuery` state. Render it conditionally.
+  * **Code Added (within the `return` statement's header section):**
+    ```jsx
+    {status === 'success' && templates.length > 0 && (
+      <div className="mb-6">
+        <input
+          type="text"
+          placeholder="Search templates..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="p-2 border border-gray-300 rounded-lg w-full sm:w-1/2 md:w-1/3 lg:w-1/4 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+        />
+      </div>
+    )}
+    ```
+
+-----
+
+### Step 5: Update Rendering to Use Filtered List
+
+  * **Purpose:** Modify the rendering logic to map over `filteredTemplates` instead of the original `templates` state.
+  * **Code Modified (inside `renderContent` function, `success` case):**
+    ```diff
+    - {templates.map((template) => (
+    + {filteredTemplates.map((template) => (
+        <TemplateCard key={template.id} template={template} onDelete={openDeleteModal} />
+      ))}
+    ```
+
+-----
+
+### Step 6: Handle "No Results Found"
+
+  * **Purpose:** Display a specific message when a search yields no results, distinguishing it from the initial empty state.
+  * **Code Modified (inside `renderContent` function, `success` case):**
+    ```diff
+      case 'success':
+        if (templates.length === 0) {
+          return <EmptyState />;
+    +   } else if (filteredTemplates.length === 0 && searchQuery) {
+    +      return (
+    +        <div className="text-center text-gray-500 mt-8">
+    +          No templates found matching "{searchQuery}".
+    +        </div>
+    +      );
+        } else {
+          return (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {filteredTemplates.map((template) => (
+                 // ... TemplateCard
+              ))}
+            </div>
+          );
+        }
+    ```
+
+-----
+
+### Step 7: Restructure Header and Apply Responsive Styles
+
+  * **Purpose:** Rearrange the header elements (title, search bar, button) using Flexbox to match the design, and hide/show elements based on screen size.
+  * **Code Modified (Header section in `return` statement):**
+      * Wrapped title, search input div, and action buttons div in a main `flex flex-wrap justify-between items-center gap-4 mb-6` container.
+      * Modified search input `div` classes to `hidden md:flex flex-grow justify-center max-w-lg relative`.
+      * Added a new `div` for action buttons (`flex items-center gap-2 flex-shrink-0`).
+      * Added a `<button>` for the search icon, visible only on small screens (`md:hidden`).
+      * Defined `SearchIcon` and `PlusIcon` components.
+
+-----
+
+### Step 8: Add Icon Inside Search Input
+
+  * **Purpose:** Place the `SearchIcon` visually inside the left part of the search input field.
+  * **Code Modified (Search input block):**
+      * Added `relative` class to the search input container `div`.
+      * Added a new `div` *before* the input to hold the `SearchIcon`, styled with `absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400`.
+      * Added `pl-10` to the input's `className` for padding.
+
+-----
+
+### Step 9: Verify and Adjust Input Padding
+
+  * **Purpose:** Correct the overlap between the icon and the placeholder text by ensuring sufficient left padding on the input.
+  * **Code Modified (Input element `className`):**
+      * Confirmed/adjusted `pl-10` (or `pl-11`/`pl-12` if needed) was present in the input's class list.
+    <!-- end list -->
+    ```diff
+    - className="p-2 pl-10 ..." // Example initial state
+    + className="p-2 pl-10 ..." // Confirmed or adjusted value
+    ```
+
+-----
+
+### Step 10: Add Hover Effects and Transitions
+
+  * **Purpose:** Implement the teal border/shadow hover effect on the search bar and the color change on the icon.
+  * **Code Modified:**
+      * Added `group` class to the search input container `div`.
+      * Added `group-hover:text-teal-500 transition-colors duration-300 ease-in-out` to the icon's `div`.
+      * Added `hover:border-teal-500 hover:shadow-md transition-all duration-300 ease-in-out` to the input's `className`.
+
+-----
+
+This report covers all the significant changes applied to `DashboardPage.jsx` during this feature implementation.
