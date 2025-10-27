@@ -5,8 +5,18 @@ import { useLocation, Link, Navigate } from 'react-router-dom';
 import { generatePresentation } from '../api/templateService';
 import Spinner from '../components/ui/spinner';
 
+// Helper function or logic to create this map
+ const getPlaceholderTypes = (placeholders) => {
+   if (!placeholders) return {};
+   return placeholders.reduce((acc, ph) => {
+     acc[ph.name] = ph.type;
+     return acc;
+   }, {});
+ };
+
 function ReviewPage() {
     const location = useLocation();
+    console.log("ReviewPage location.state:", location.state);
 
     // State is passed from DataEntryPage via the navigate function
     const { template, formData, imagePreviews } = location.state || {};
@@ -18,6 +28,7 @@ function ReviewPage() {
 
     // If a user navigates here directly without data, redirect them to the dashboard.
     if (!template || !formData) {
+        console.log("Redirecting because template or formData is missing!");
         return <Navigate to="/" replace />;
     }
 
@@ -58,6 +69,11 @@ function ReviewPage() {
         }
     };
 
+    const placeholderTypes = template.placeholders.reduce((acc, ph) => {
+        acc[ph.name] = ph.type;
+        return acc;
+    }, {});
+
     const placeholders = Object.keys(formData);
 
     return (
@@ -82,19 +98,45 @@ function ReviewPage() {
             <p className="text-gray-500 mt-1">Confirm the details below before generating the final presentation.</p>
 
             <div className="mt-8 bg-white p-8 rounded-lg shadow-md border border-gray-200 divide-y divide-gray-200">
-                {placeholders.map(key => (
-                    <div key={key} className="py-4 sm:grid sm:grid-cols-3 sm:gap-4">
-                        <dt className="text-sm font-medium text-gray-600 capitalize">{key.replace(/_/g, ' ')}</dt>
-                        <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                            {imagePreviews[key] ? (
-                                <img src={imagePreviews[key]} alt="Image preview" className="w-40 h-auto rounded-md border border-gray-300" />
-                            ) : (
-                                <span className="break-words">{formData[key] || <i className="text-gray-400">Not provided</i>}</span>
-                            )}
-                        </dd>
-                    </div>
-                ))}
-            </div>
+                 {placeholders.map(key => {
+                     // Determine the type of the current placeholder
+                     const placeholderType = placeholderTypes[key] || 'text';
+                     const value = formData[key];
+
+                     return (
+                         <div key={key} className="py-4 sm:grid sm:grid-cols-3 sm:gap-4">
+                             <dt className="text-sm font-medium text-gray-600 capitalize">{key.replace(/_/g, ' ')}</dt>
+                             <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+
+                                 {/* --- Conditional Rendering based on Type --- */}
+                                 {placeholderType === 'image' && imagePreviews[key] ? (
+                                     <img src={imagePreviews[key]} alt={`${key} preview`} className="w-40 h-auto rounded-md border border-gray-300" />
+                                 ) : placeholderType === 'list' ? (
+                                     // Handle list type
+                                     Array.isArray(value) && value.filter(item => String(item).trim() !== '').length > 0 ? (
+                                         <ul className="list-disc list-inside space-y-1">
+                                             {value.filter(item => String(item).trim() !== '').map((item, index) => (
+                                                 <li key={index} className="break-words">{item}</li>
+                                             ))}
+                                         </ul>
+                                     ) : (
+                                         <i className="text-gray-400">None</i> // Display None if list is empty or invalid
+                                     )
+                                 ) : (
+                                     // Handle text type (and fallback for others)
+                                     (value && String(value).trim() !== '') ? (
+                                         <span className="break-words">{String(value)}</span>
+                                     ) : (
+                                         <i className="text-gray-400">Not provided</i>
+                                     )
+                                 )}
+                                {/* --- End Conditional Rendering --- */}
+
+                            </dd>
+                        </div>
+                     );
+                 })}
+             </div>
 
             <div className="mt-8 flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-4 space-y-4 space-y-reverse sm:space-y-0">
                  <Link

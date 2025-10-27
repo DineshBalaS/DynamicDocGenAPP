@@ -277,7 +277,8 @@ def generate():
                 ph_name = placeholder['name']
                 if ph_name not in data or (data[ph_name] is None) or \
                    (isinstance(data[ph_name], str) and not data[ph_name].strip()):
-                    return jsonify({"error": f"Missing or empty value for required placeholder: '{ph_name}'"}), 400
+                    if placeholder.get('type') != 'list': # Skip strict check for lists for now
+                         return jsonify({"error": f"Missing or empty value for required placeholder: '{ph_name}'"}), 400
 
             # 4. Prepare for generation
             s3 = get_s3()

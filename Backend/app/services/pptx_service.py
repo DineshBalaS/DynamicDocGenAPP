@@ -3,6 +3,7 @@ from io import BytesIO
 from pptx import Presentation
 from pptx.enum.text import MSO_AUTO_SIZE
 from pptx.enum.dml import MSO_COLOR_TYPE
+from pptx.util import Inches
 
 def _transfer_font_properties(source_font, target_font):
     """
@@ -71,12 +72,21 @@ def generate_presentation(template_stream: BytesIO, data: dict, s3_service) -> B
     This function uses the base python-pptx library for all manipulations.
     """
     ppt = Presentation(template_stream)
+    # Regex to find list placeholders specifically
+    list_pattern = re.compile(r'\{\{list:(\w+)\}\}')
+    # Regex to find image placeholders specifically
+    image_pattern = re.compile(r'\{\{image:(\w+)\}\}')
+    # Regex for simple text placeholders (including explicitly typed text ones)
+    text_pattern = re.compile(r'\{\{(?:text:)?(\w+)\}\}')
 
     for slide in ppt.slides:
         shapes_to_delete = []
         for shape in list(slide.shapes): # Use list() to allow safe deletion
             if not shape.has_text_frame:
                 continue
+            
+            # --- Check shape text content ONCE ---
+            shape_text = shape.text_frame.text
 
             # --- Image Replacement Logic ---
             if '{{image:' in shape.text_frame.text:
@@ -101,34 +111,65 @@ def generate_presentation(template_stream: BytesIO, data: dict, s3_service) -> B
                     continue # Skip other replacements for this shape
 
             # --- List Replacement Logic ---
-            if '{{list:' in shape.text_frame.text:
-                match = re.search(r'\{\{list:(\w+)\}\}', shape.text_frame.text)
-                if match:
-                    ph_name = match.group(1)
-                    items = data.get(ph_name, [])
-                    
-                    tf = shape.text_frame
-                    tf.clear() # Clear existing placeholder text
+            found_list_in_shape = False
+            for para_idx, para in enumerate(shape.text_frame.paragraphs):
+                list_match = list_pattern.search(para.text)
+                if list_match and para.runs: # Ensure there are runs to get style from
+                    ph_name = list_match.group(1)
+                    items = data.get(ph_name, []) # Expect data[ph_name] to be a list
 
-                    if items and isinstance(items, list):
-                        # Set the first item in the first paragraph
-                        p = tf.paragraphs[0] if tf.paragraphs else tf.add_paragraph()
-                        p.text = str(items[0])
-                        p.level = 0
-                        
-                        # Add subsequent items as new paragraphs
+                    # --- Store Font Properties from the first run ---
+                    source_font = para.runs[0].font
+                    # --- End Store Font Properties ---
+
+                    # --- Clear the original paragraph that contained the placeholder ---
+                    # We'll reuse this paragraph for the first item. Clear its runs.
+                    for run in list(para.runs): # Iterate copy to allow removal
+                         p = run._r.getparent()
+                         p.remove(run._r)
+                    para.text = "" # Ensure text is empty if no runs were present initially
+                    # --- End Clear Original Paragraph ---
+
+                    tf = shape.text_frame # Get the text frame
+
+                    if items and isinstance(items, list) and items[0] is not None:
+                        # --- Apply first item to the existing paragraph ---
+                        first_item_run = para.add_run()
+                        first_item_run.text = str(items[0])
+                        para.level = 0 # Ensure it's a top-level bullet
+                        _transfer_font_properties(source_font, first_item_run.font) # Apply stored font
+                        # --- End Apply First Item ---
+
+                        # --- Add subsequent items as NEW paragraphs with stored font ---
                         for item in items[1:]:
-                            p = tf.add_paragraph()
-                            p.text = str(item)
-                            p.level = 0
-                        
-                        # Disable auto-fitting for the shape to prevent text shrinking
-                        tf.auto_size = MSO_AUTO_SIZE.NONE
+                            new_p = tf.add_paragraph()
+                            new_p.text = str(item) # Set text directly first
+                            new_p.level = 0
+                            if new_p.runs: # Check if setting text created a run
+                                _transfer_font_properties(source_font, new_p.runs[0].font) # Apply stored font
+                            else: # If not, add a run and apply
+                                run = new_p.add_run()
+                                run.text = str(item) # Text might need to be set again on run
+                                _transfer_font_properties(source_font, run.font)
+                        # --- End Add Subsequent Items ---
+
                     else:
-                        # Handle case where data is missing or not a list
-                        p = tf.add_paragraph()
-                        p.text = f"[List data for '{ph_name}' is invalid or missing]"
-                    continue
+                        # --- Handle "None" case, applying stored font ---
+                        none_run = para.add_run()
+                        none_run.text = "None"
+                        para.level = 0
+                        _transfer_font_properties(source_font, none_run.font) # Apply stored font
+                        # --- End Handle "None" Case ---
+
+                    # Disable auto-fitting for the shape after handling the list
+                    tf.auto_size = MSO_AUTO_SIZE.NONE
+                    # tf.word_wrap = True # Optional
+
+                    found_list_in_shape = True # Mark that we handled a list in this shape
+                    break # Stop checking paragraphs in this shape once a list placeholder is found & processed
+
+            if found_list_in_shape:
+                continue
 
             # --- Text Replacement Logic (preserving formatting) ---
                         # --- Text Replacement Logic (preserving formatting) ---

@@ -742,3 +742,146 @@ Code Report: Trash Feature Integration (Soft Delete & Restore)Date: October 27, 
   element: <TrashPage />,
 }
 Imported TrashPage: The TrashPage component was imported.Note: Routing logic previously in App.jsx using <Router>/<Routes>/<Route> components is now superseded by the createBrowserRouter definition in main.jsx.4. New Frontend Component (src/pages/TrashPage.jsx)A new page component was created to display and manage trashed items.Functionality:Fetches trashed templates using getTrashedTemplates on component mount.Manages loading, success, and error states for the data fetching process.Displays a Spinner during loading, an ErrorState component on fetch failure (with retry), and an EmptyTrashState component if no trashed items are found.Renders a grid of TemplateCard components, passing the fetched trashedTemplates.Provides a handleRestore function which calls the restoreTemplate API service. On success, it shows a toast notification and optimistically removes the restored template from the local state for immediate UI feedback.TemplateCard Usage: Passes isTrashContext={true} and onRestore={handleRestore} props to the TemplateCard components.5. UI Component ModificationsExisting UI components were updated to integrate the feature.src/components/common/Header.jsx:Added a NavLink component pointing to /trash.Includes a TrashIcon alongside the text "Trash".Uses existing styling logic for hover and active states.src/components/templates/TemplateCard.jsx:Props Added: Component now accepts isTrashContext (boolean, default false) and onRestore (function).Conditional Rendering (Hover Button): The main button shown on hover now displays "Restore" (and calls onRestore) if isTrashContext is true, otherwise it displays "Use Template" (as a Link).Conditional Rendering (Kebab Menu): The entire kebab menu button (MoreVerticalIcon) and its associated dropdown are now hidden (display: none effectively via conditional rendering) if isTrashContext is true. If isTrashContext is false, the menu shows "Edit" and "Delete" options as before.UI Polish: Added pointer-events-none to the hover overlay and kebab button when hidden (opacity 0) to prevent interaction with invisible elements. Added aria-label to the kebab button.src/pages/DashboardPage.jsx:Modal Text: Updated the confirmation modal text (title, body, confirm button) displayed when deleting a template to clearly state "Move to Trash" and mention the 30-day auto-deletion.Toast Message: Updated the success toast message shown after clicking the confirm button in the modal to "Template moved to trash." Added state (toastType) to handle error toasts correctly if the API call fails.SummaryThe Trash feature provides a safety net against accidental deletion by implementing a soft-delete pattern. Templates moved to trash are viewable on a dedicated /trash page and can be restored. The integration leverages existing components (TemplateCard, Toast, Modal) with conditional logic based on context (dashboard vs. trash view) and relies on new backend endpoints for data fetching and state modification. Automatic permanent deletion is handled by backend S3 configuration.
+
+Okay, thank you for clarifying those points. Based on your answers, here is my understanding of the user journey for list placeholders:
+
+---
+
+## User Journey: List Placeholders
+
+### Part 1: Template Upload & Review (Implicit Handling)
+
+1.  [cite_start]**Upload**: The user uploads a `.pptx` file containing various placeholders, including some formatted like `{{list:some_items}}`[cite: 563].
+2.  [cite_start]**Analysis**: The backend analyzes the file using `extract_placeholders` and identifies placeholders like `some_items` as having the `type: "list"`[cite: 566, 302, 303, 304, 305].
+3.  **Review Placeholders (Upload Step 2)**:
+    * [cite_start]The user arrives at the "Review Placeholders" screen[cite: 568].
+    * They see all detected placeholders listed, including those identified as lists (e.g., `some_items [list]`).
+    * [cite_start]**Crucially, the user *does not* define the specific choices (like "Option A", "Option B") for the list placeholder at this stage.** The system simply recognizes its *type* as "list" based on the `{{list:...}}` syntax in the PPTX[cite: 569, 570, 571]. [cite_start]The user can still add/remove placeholders as usual[cite: 570, 571].
+4.  [cite_start]**Save Template (Upload Step 3)**: The user names and saves the template[cite: 574, 575]. [cite_start]The backend saves the template metadata, including the placeholder list with their names and types (e.g., `{"name": "some_items", "type": "list"}`)[cite: 581, 582].
+
+---
+
+### Part 2: Generating a Presentation (Data Entry)
+
+1.  [cite_start]**Select Template**: The user selects the template containing the `{{list:some_items}}` placeholder from their dashboard[cite: 590, 591].
+2.  **Fill Details (Data Entry Form)**:
+    * [cite_start]The user is taken to the dynamic `DataEntryPage`[cite: 594].
+    * The frontend checks the `type` for each placeholder.
+    * **Scenario A (Predefined List):** If the placeholder name (`some_items`) matches a *known list* predefined in the frontend's (or backend's) configuration:
+        * The UI displays a group of **checkboxes** corresponding to the predefined choices (e.g., ☐ Choice A, ☐ Choice B, ☐ Choice C).
+        * An additional checkbox labeled **"Other"** is always included in this group.
+        * If the user checks the "Other" box, a **text input field appears immediately beside it**, allowing them to type a custom value.
+        * The user can select any combination of the predefined checkboxes and also fill in the "Other" text box.
+    * **Scenario B (Unknown/New List):** If the placeholder name (`some_items`) is *not* recognized as having predefined choices:
+        * [cite_start]The UI displays a **multi-input field** (similar to the current design for `{{project_updates}}` [cite: 449, 450, 451, 452]), allowing the user to add multiple text items freely using an "+ Add Item" button.
+    * [cite_start]The user fills in all other text and image placeholders as usual[cite: 595, 596, 597].
+3.  [cite_start]**Review Entries**: The user proceeds to the `ReviewPage`[cite: 601]. The summary displays the selections for the list placeholder.
+    * For **Scenario A**, it might show something like: "Some Items: Choice A, Choice C, *Custom Value*".
+    * For **Scenario B**, it might show: "Some Items: Item 1, Item 2, Item 3".
+4.  [cite_start]**Generate Presentation**: The user clicks "Generate Presentation"[cite: 601].
+    * [cite_start]The frontend sends the data to `POST /api/generate`[cite: 608]. The data for `some_items` will likely be an array of strings containing the labels of the selected predefined checkboxes *plus* the text entered in the "Other" box (if any) for Scenario A, or the list of strings entered in the multi-input field for Scenario B.
+5.  **Backend Processing**:
+    * [cite_start]The backend fetches the template and receives the data array for `some_items`[cite: 609, 610].
+    * [cite_start]The `pptx_service.generate_presentation` function finds the `{{list:some_items}}` shape in the presentation[cite: 611].
+    * If the received array for `some_items` is empty or wasn't provided, it replaces the placeholder shape's text with the word "**None**".
+    * [cite_start]If the array contains items, it clears the placeholder text and inserts each item from the array as a **separate bullet point** within that shape's text frame[cite: 611, 613].
+6.  [cite_start]**Download**: The final `.pptx` file is generated and sent to the user for download[cite: 604, 614].
+
+---
+
+Okay, let's lay out a plan to integrate the list placeholder feature cleanly into your application. We'll do this in phases, focusing on minimal complexity first while keeping it production-ready.
+
+## Phase 1: Backend Preparation (Database & Generation Logic)
+
+**Goal:** Ensure the backend can store the `list` type and correctly generate bullet points in the PowerPoint from an array of data.
+
+1.  **Verify Database Schema:**
+      * [cite\_start]Confirm that the `placeholders` column in your `templates` table is `JSONB`[cite: 6112]. [cite\_start]This structure already supports storing the `"type": "list"` information identified during the upload analysis[cite: 6448]. No database schema change is needed initially.
+2.  **Enhance Generation Service (`pptx_service.py`):**
+      * [cite\_start]Modify the `generate_presentation` function[cite: 6162].
+      * Inside the loop processing shapes, add logic to detect if a placeholder is a list type (e.g., check `placeholder['type'] == 'list'` if you pass the full placeholder info, or just check the incoming `data` structure).
+      * **Input Handling:** Expect the corresponding value in the `data` dictionary for a list placeholder (e.g., `data['nearby_amenities']`) to be an **array of strings**.
+      * **Bullet Point Logic:**
+          * If the array exists and is *not empty*:
+              * [cite\_start]Clear the existing text/placeholder from the shape's text frame[cite: 6162].
+              * Add the **first item** from the array as the text for the first paragraph (level 0).
+              * Iterate through the **remaining items** in the array, adding a **new paragraph** for each one, setting its text and ensuring `level=0` for standard bullets.
+              * Consider disabling text frame auto-fitting (`tf.auto_size = MSO_AUTO_SIZE.NONE`) to prevent text shrinking if the list is long.
+          * If the array is *empty* or *missing*: Replace the placeholder shape's text with the word "**None**", as requested.
+      * [cite\_start]**Keep Existing Logic:** Ensure this new list logic doesn't interfere with the existing text [cite: 6162] [cite\_start]and image replacement logic[cite: 6162]. Image/List placeholders likely need `continue` statements after handling to prevent text replacement logic from running on them.
+3.  **Refine Placeholder Extraction (`pptx_service.py`) (Confirmation):**
+      * [cite\_start]Double-check that `extract_placeholders` correctly identifies `{{list:name}}` and returns `{"name": "name", "type": "list"}`[cite: 6448]. [cite\_start]This seems correct based on the provided code[cite: 6448].
+
+-----
+
+## Phase 2: Frontend Implementation (Data Entry UI & State)
+
+**Goal:** Update the data entry form to conditionally render the correct input UI for list placeholders and manage the state accordingly.
+
+1.  **Predefined Choices Configuration (Frontend):**
+      * **Decision:** For the least complexity initially, let's define the mapping of *known* list placeholder names to their choices directly in the frontend.
+      * **Action:** Create a configuration object (e.g., in a constants file or directly in `DataEntryPage.jsx`) like:
+        ```javascript
+        const PREDEFINED_LIST_CHOICES = {
+          nearby_amenities: ["Supermarket", "Park", "Bus Stop", "Gym"],
+          // Add other known list placeholders here
+        };
+        ```
+2.  **Modify Data Entry Page (`DataEntryPage.jsx`):**
+      * [cite\_start]**Conditional Rendering:** Inside the `map` function rendering form fields[cite: 6162]:
+          * Check `ph.type === 'list'`.
+          * If it is a list, check if `ph.name` exists as a key in `PREDEFINED_LIST_CHOICES`.
+          * **If Predefined:** Render a new component (or inline JSX) that displays:
+              * Checkboxes for each choice in `PREDEFINED_LIST_CHOICES[ph.name]`.
+              * An "Other" checkbox.
+              * A text input that is *conditionally displayed* only when the "Other" checkbox is checked.
+          * **If Not Predefined:** Render a multi-input component (you might adapt the logic used for `project_updates` if that exists, or create a new one) allowing the user to add/remove text items.
+      * **State Management (`formData`):**
+          * For **predefined lists:** The state for this placeholder (e.g., `formData.nearby_amenities`) needs to store an **array** of selected choice strings. When "Other" is checked and text is entered, add that text to the array. Ensure you handle checking/unchecking correctly.
+          * For **dynamic lists:** The state needs to store an **array** of the strings entered by the user in the multi-input fields.
+      * [cite\_start]**Form Validation (`isFormValid`):** Adjust the validation logic [cite: 6162] to correctly check if list placeholders (both types) have at least one selection/entry if they are considered required.
+3.  **Update API Service (`templateService.js`):**
+      * [cite\_start]In the `generatePresentation` function[cite: 6162], ensure that the `data` payload being sent correctly includes the arrays of strings for the list placeholders based on the `formData` state. No complex transformation should be needed if the state is already storing arrays.
+
+-----
+
+## Phase 3: Frontend Review & Polish
+
+**Goal:** Ensure the review page displays the list data correctly and the overall flow is smooth.
+
+1.  **Modify Review Page (`ReviewPage.jsx`):**
+      * [cite\_start]In the section that displays the summary of entered data[cite: 6162]:
+          * Check if the value for a key corresponds to an array (you might need to check the original `template.placeholders` type information passed in the state).
+          * If it's an array (our list data), format it for display. Instead of just showing the raw array, maybe join the items with commas (e.g., "Supermarket, Park, Library") or display them as a small bulleted list within the summary row.
+          * Handle the display of an empty list appropriately (perhaps showing "None").
+2.  **Refine Styling & UX:**
+      * Ensure the checkbox group, "Other" input, and multi-input fields are styled consistently with the rest of the application.
+      * Test the user experience of adding/removing items in the dynamic list and selecting/unselecting checkboxes.
+
+-----
+
+## Phase 4: Testing & Refinement
+
+**Goal:** Thoroughly test all scenarios and ensure robustness.
+
+1.  **End-to-End Testing:**
+      * **Scenario A (Predefined):**
+          * Upload a template with `{{list:nearby_amenities}}`.
+          * Go to Data Entry, select some predefined checkboxes, check "Other", and type a custom value.
+          * Verify the Review Page displays all selections correctly.
+          * Generate the presentation and confirm the output has the correct bullet points.
+          * Test selecting *only* "Other".
+          * Test selecting *only* predefined choices.
+          * Test selecting *nothing* and ensure "None" appears in the generated PPTX.
+      * **Scenario B (Dynamic):**
+          * Upload a template with an *unknown* list placeholder, e.g., `{{list:meeting_attendees}}`.
+          * Go to Data Entry, use the multi-input to add several names.
+          * Verify the Review Page displays the names correctly.
+          * Generate the presentation and confirm the output has the correct bullet points.
+          * Test adding *no* items and ensure "None" appears in the generated PPTX.
+2.  **Edge Case Testing:**
+      * Test placeholders with names containing underscores or numbers.
+      * Test interactions with existing text and image placeholders.
+3.  **Code Review & Refinement:** Review the implementation for clarity, efficiency, and adherence to your project's coding standards.
+
+This phased approach introduces the necessary backend capability first, then builds the core frontend UI, refines the review step, and concludes with thorough testing. It starts with the simplest configuration approach (frontend-defined choices) for known lists.

@@ -9,6 +9,9 @@ import Spinner from "../components/ui/spinner";
 import ErrorState from "../components/common/ErrorState";
 import ImageUploader from "../components/common/ImageUploader";
 import NoPlaceholdersFound from "../components/common/NoPlaceholdersFound";
+import { PREDEFINED_LIST_CHOICES } from '../constants/listChoices';
+import CheckboxGroupWithOther from '../components/common/CheckboxGroupWithOther';
+import MultiTextInput from '../components/common/MultiTextInput';
 
 function DataEntryPage() {
   const { templateId } = useParams();
@@ -54,10 +57,19 @@ function DataEntryPage() {
   useEffect(() => {
     if (!template || !template.placeholders) return;
 
-    // Check if every placeholder in the form has a non-empty value
-    const allFieldsFilled = template.placeholders.every(
-      (ph) => formData[ph.name] && formData[ph.name].trim() !== ""
-    );
+    // Check if every placeholder in the form has a valid value
+    const allFieldsFilled = template.placeholders.every((ph) => {
+      const value = formData[ph.name];
+      if (ph.type === 'list') {
+        // For lists, check if the array is not empty AND
+        // if it contains at least one non-empty string after trimming.
+        // Handles case like [''] from MultiTextInput initial state.
+        return Array.isArray(value) && value.length > 0 && value.some(item => typeof item === 'string' && item.trim() !== '');
+      } else {
+        // For text/image, check if it's a non-empty string after trimming.
+        return typeof value === 'string' && value.trim() !== "";
+      }
+    });
     setIsFormValid(allFieldsFilled);
   }, [formData, template]);
 
@@ -65,6 +77,11 @@ function DataEntryPage() {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // This single handler works for both CheckboxGroupWithOther and MultiTextInput
+  const handleListChange = (placeholderName, newValueArray) => {
+    setFormData(prev => ({ ...prev, [placeholderName]: newValueArray }));
   };
 
   // handler to accept and store the local preview URL from ImageUploader
@@ -111,24 +128,20 @@ function DataEntryPage() {
   // Render the main form
   return (
     <div className="max-w-7xl mx-auto">
-      <Link
-        to="/"
-        className="text-sm text-teal-600 hover:underline mb-4 inline-block"
-      >
-        &larr; Back to Dashboard
-      </Link>
-      <h1 className="text-3xl font-bold text-gray-800">{template.name}</h1>
-      <p className="text-gray-500 mt-1">
-        Fill in the data below to generate your presentation.
-      </p>
+      {/* ... (existing Back link, h1, p) ... */}
+      <Link /* ... */ >&larr; Back to Dashboard</Link>
+      <h1>{template.name}</h1>
+      <p>Fill in the data below to generate your presentation.</p>
 
       <div className="mt-8 space-y-6 bg-white p-8 rounded-lg shadow-md border border-gray-200">
         {template.placeholders.map((ph) => (
           <div key={ph.name}>
             <label className="block text-sm font-medium text-gray-700 capitalize mb-2">
               {ph.name.replace(/_/g, " ")}
-              <span className="text-red-500 ml-1">*</span>
+              <span className="text-red-500 ml-1">*</span> {/* Assuming all are required */}
             </label>
+
+            {/* --- Conditional Rendering Logic --- */}
             {ph.type === "text" ? (
               <input
                 type="text"
@@ -138,12 +151,34 @@ function DataEntryPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500"
                 placeholder={`Enter value for ${ph.name}...`}
               />
-            ) : (
+            ) : ph.type === "image" ? (
               <ImageUploader
                 placeholderName={ph.name}
                 onUploadSuccess={handleImageUploadSuccess}
+                // Pass existing preview if available (useful if navigating back)
+                initialPreviewUrl={imagePreviews[ph.name]}
+                initialS3Key={formData[ph.name]}
               />
-            )}
+            ) : ph.type === "list" ? (
+               // Check if we have predefined choices for this list placeholder
+               PREDEFINED_LIST_CHOICES[ph.name] ? (
+                 <CheckboxGroupWithOther
+                    placeholderName={ph.name}
+                    choices={PREDEFINED_LIST_CHOICES[ph.name]}
+                    value={formData[ph.name]} // Pass the array state
+                    onChange={handleListChange} // Use the new handler
+                 />
+               ) : (
+                 // Render MultiTextInput if no predefined choices found
+                 <MultiTextInput
+                    placeholderName={ph.name}
+                    value={formData[ph.name]} // Pass the array state
+                    onChange={handleListChange} // Use the same new handler
+                 />
+               )
+            ) : null /* Handle potential unknown types in the future */}
+            {/* --- End Conditional Rendering Logic --- */}
+
           </div>
         ))}
       </div>
@@ -151,14 +186,14 @@ function DataEntryPage() {
       <div className="mt-8">
         <button
           onClick={handleReview}
-          disabled={isLoading}
-          className="w-full bg-teal-600 text-white font-bold py-3 px-4 rounded-md hover:bg-teal-700 disabled:bg-gray-400 transition-colors flex justify-center items-center"
+          disabled={!isFormValid || isLoading} // Disable if form is invalid or loading
+          className="w-full bg-teal-600 text-white font-bold py-3 px-4 rounded-md hover:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex justify-center items-center"
         >
           Review and Generate
         </button>
         {!isFormValid && !isLoading && (
-          <p className="text-center text-xs text-gray-500 mt-2">
-            Please fill out all required fields to continue.
+          <p className="text-center text-xs text-red-500 mt-2 font-medium">
+            * Please fill out all required fields to continue.
           </p>
         )}
       </div>
