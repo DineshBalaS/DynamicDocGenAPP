@@ -18,7 +18,35 @@ export const getTemplates = async () => {
 };
 
 /**
- * NEW: Fetches the details for a single template, including its placeholders.
+ * Fetches the list of soft-deleted (trashed) templates from the backend.
+ * @returns {Promise<Array>} A promise that resolves to an array of trashed template objects.
+ */
+export const getTrashedTemplates = async () => {
+  try {
+    const response = await apiClient.get('/api/templates/trash');
+    return response.data;
+  } catch (error) {
+    console.error('Failed to fetch trashed templates:', error);
+    throw new Error('Could not load trashed items from the server.');
+  }
+};
+
+/**
+ * Restores a soft-deleted template from the trash.
+ * @param {number|string} templateId - The ID of the template to restore.
+ * @returns {Promise<Object>} A promise that resolves to the success message from the backend.
+ */
+export const restoreTemplate = async (templateId) => {
+  try {
+    const response = await apiClient.post(`/api/templates/${templateId}/restore`);
+    return response.data; // Expected: { message: "Template restored successfully." }
+  } catch (error) {
+    console.error(`Failed to restore template ${templateId}:`, error.response?.data || error.message);
+    throw new Error(error.response?.data?.error || 'Failed to restore template.');
+  }
+};
+
+/**
  * Note: This assumes a `GET /api/templates/:id` endpoint exists on the backend.
  * @param {string} templateId - The ID of the template to fetch.
  * @returns {Promise<Object>} A promise that resolves to the template object.

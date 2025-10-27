@@ -638,3 +638,101 @@ export default MainLayout;
   * **Cost-Effective**: All animation happens client-side; no backend resources are involved.
 
 This setup provides the slide-and-fade effect specifically when navigating between routes rendered within your `MainLayout`.
+
+Okay, I've reviewed the files. Based on your requirements for a clean, robust, and production-ready integration, here's the plan:
+
+## Plan: Integrating the Trash Feature
+
+This plan outlines the necessary steps to add a "Trash" view where users can see and restore soft-deleted templates.
+
+***
+
+### 1. Backend API Endpoints (Assumption)
+
+First, ensure these two **new endpoints** exist on your Flask backend:
+
+* `GET /api/templates/trash`: Fetches only the templates marked as deleted (`deleted_at IS NOT NULL`).
+* `POST /api/templates/{templateId}/restore`: Updates a specific template's `deleted_at` status back to `NULL`.
+
+***
+
+### 2. API Service Layer Updates (`src/api/templateService.js`)
+
+We'll add functions to interact with the new backend endpoints.
+
+* **Add `getTrashedTemplates` function:**
+    * Purpose: Fetch the list of soft-deleted templates.
+    * Action: Makes a `GET` request to `/api/templates/trash`.
+    * Returns: A promise resolving to an array of trashed template objects. Include standard error handling like in `getTemplates`.
+* **Add `restoreTemplate` function:**
+    * Purpose: Restore a specific template from the trash.
+    * Action: Takes a `templateId` and makes a `POST` request to `/api/templates/{templateId}/restore`.
+    * Returns: A promise resolving to the backend's success message. Include standard error handling.
+
+***
+
+### 3. Routing Setup (`src/App.jsx`)
+
+We need a dedicated URL for the trash page.
+
+* **Add New Route:** Define a new route within the existing `<Route path="/" element={<MainLayout />}>` block.
+    * Path: `/trash`
+    * Element: `<TrashPage />` (We'll create this component next).
+
+***
+
+### 4. Create Trash Page (`src/pages/TrashPage.jsx` - New File)
+
+This page will display the trashed items.
+
+* **Component Structure:** Create a new functional component `TrashPage`.
+* **Data Fetching:**
+    * Use `useState` to manage `trashedTemplates`, `status` ('loading', 'success', 'error'), and potential `toastMessage`.
+    * Use `useEffect` and `useCallback` (similar to `DashboardPage`) to call `getTrashedTemplates` on component mount.
+* **Rendering Logic:**
+    * Implement `renderContent` function similar to `DashboardPage` to handle loading (Spinner), error (ErrorState), and success states.
+    * If `status` is 'success' and `trashedTemplates` is empty, display a message like "Trash is empty."
+    * If templates exist, map over `trashedTemplates` and render a `TemplateCard` for each.
+* **Restore Action:**
+    * Define a `handleRestore` function that takes a `templateId`.
+    * This function will call `restoreTemplate(templateId)`.
+    * On success:
+        * Show a success toast ("Template restored.").
+        * Optimistically update the UI by removing the restored template from the `trashedTemplates` state (`setTrashedTemplates`).
+    * On failure: Show an error toast.
+
+***
+
+### 5. UI Integration and Navigation
+
+Connect the new page and actions to the existing UI.
+
+* **Header Link (`src/components/common/Header.jsx`):**
+    * Add a new `NavLink` component within the navigation `div`.
+    * `to="/trash"`
+    * Text: "Trash" (or potentially use a trash icon).
+    * Apply the same `style` and `className` logic as the other links for consistency and active state indication.
+* **Dashboard Deletion (`src/pages/DashboardPage.jsx`):**
+    * Locate the `handleDeleteConfirm` function.
+    * **Update Toast:** Change the success `setToastMessage` call from `'Template deleted successfully!'` to `'Template moved to trash.'`.
+    * *Verification:* Confirm it already uses the `deleteTemplate` service function (which maps to the backend's soft-delete endpoint). The existing optimistic update (`setTemplates`) is correct.
+* **Template Card (`src/components/templates/TemplateCard.jsx`):**
+    * **Add Props:** Modify the component to accept two new optional props: `isTrashContext` (boolean) and `onRestore` (function).
+    * **Conditional Actions (Inside the Card):**
+        * **Kebab Menu:**
+            * When `isTrashContext` is `true`, replace the "Delete" menu item with a "Restore" menu item.
+            * The "Restore" item's `onClick` should call `onRestore(template)` and close the menu.
+            * Consider hiding the "Edit" option in the trash context if it doesn't make sense.
+        * **Hover Overlay:**
+            * When `isTrashContext` is `true`, change the main hover button text from "Use Template" to "Restore".
+            * The `onClick` or `Link` target for this button should also call `onRestore(template)`. (Decide if you want a button *or* menu item for restore, probably not both overlay button *and* menu item).
+    * **Passing Props:**
+        * In `DashboardPage.jsx`, render `<TemplateCard ... onDelete={openDeleteModal} />` (no changes needed here).
+        * In the new `TrashPage.jsx`, render `<TemplateCard ... isTrashContext={true} onRestore={handleRestore} />`.
+
+### 6. Final Touches
+
+* **Toast Messages (`src/components/ui/Toast.jsx` & Calling Pages):** Ensure appropriate success/error messages appear for both moving to trash and restoring. Pass the correct `type` ('success' or 'error') to the Toast component.
+* **Styling:** Ensure the "Trash" link in the header and the elements on the `TrashPage` match the application's overall style.
+
+This plan creates a dedicated page for trashed items, reuses the existing `TemplateCard` component with minor modifications via props, updates the API service layer, and integrates the flow into the navigation and user feedback mechanisms.

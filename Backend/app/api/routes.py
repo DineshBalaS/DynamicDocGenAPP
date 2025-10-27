@@ -377,4 +377,53 @@ def upload_asset_from_url():
     except Exception as e:
         print(f"Unexpected error uploading from URL: {e}")
         return jsonify({"error": "An unexpected server error occurred."}), 500
+
+@api_bp.route('/templates/trash', methods=['GET'])
+def get_trashed_templates():
+    """
+    Endpoint to retrieve a list of all soft-deleted templates (in the trash).
+    """
+    try:
+        db = get_db()
+        cur = db.cursor()
+        
+        # Query for templates WHERE deleted_at IS NOT NULL
+        cur.execute("SELECT id, name, created_at, deleted_at FROM templates WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC;")
+        
+        columns = [desc[0] for desc in cur.description]
+        trashed_templates = [dict(zip(columns, row)) for row in cur.fetchall()]
+        
+        cur.close()
+        return jsonify(trashed_templates), 200
+
+    except (psycopg2.DatabaseError, ValueError) as e:
+        print(f"Error fetching trashed templates: {e}") 
+        return jsonify({"error": "A database error occurred while fetching trashed items."}), 500
+    
+@api_bp.route('/templates/<int:template_id>/restore', methods=['POST'])
+def restore_template(template_id):
+    """
+    Endpoint to restore a soft-deleted template from the trash.
+    """
+    db = get_db()
+    try:
+        with db.cursor() as cur:
+            # Check if the template exists and is actually in the trash
+            cur.execute("SELECT id FROM templates WHERE id = %s AND deleted_at IS NOT NULL", (template_id,))
+            record = cur.fetchone()
+
+            if record is None:
+                return jsonify({"error": "Template not found in trash."}), 404
+            
+            # Update the deleted_at timestamp to NULL
+            cur.execute("UPDATE templates SET deleted_at = NULL WHERE id = %s", (template_id,))
+            
+            db.commit()
+
+        return jsonify({"message": "Template restored successfully."}), 200
+
+    except psycopg2.DatabaseError as e:
+        db.rollback()
+        print(f"Error restoring template {template_id}: {e}")
+        return jsonify({"error": "An internal error occurred while restoring the template."}), 500
     

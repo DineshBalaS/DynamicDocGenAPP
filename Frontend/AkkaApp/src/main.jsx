@@ -11,6 +11,7 @@ import NotFoundPage from './pages/NotFoundPage';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import DataEntryPage from './pages/DataEntryPage';
 import ReviewPage from './pages/ReviewPage';
+import TrashPage from './pages/TrashPage';
 
 // This is the new, modern way to define your application's routes.
 const router = createBrowserRouter([
@@ -35,6 +36,10 @@ const router = createBrowserRouter([
       {
         path: '/review/:templateId',
         element: <ReviewPage />,
+      },
+      {
+        path: '/trash',
+        element: <TrashPage />,
       },
     ],
   },

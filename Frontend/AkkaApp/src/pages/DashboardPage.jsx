@@ -26,6 +26,7 @@ function DashboardPage() {
   const [templates, setTemplates] = useState([]);
   const [status, setStatus] = useState('loading');
   const [toastMessage, setToastMessage] = useState(null); // 'loading', 'success', 'error'
+  const [toastType, setToastType] = useState('success'); // Added state for toast type
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [templateToDelete, setTemplateToDelete] = useState(null)
@@ -82,9 +83,13 @@ function DashboardPage() {
       await deleteTemplate(templateToDelete.id);
       // On success, remove the template from the local state for an instant UI update
       setTemplates(currentTemplates => currentTemplates.filter(t => t.id !== templateToDelete.id));
-      setToastMessage('Template deleted successfully!');
+      // Update success message and ensure type is success
+      setToastMessage(`Template "${templateToDelete.name}" moved to trash.`);
+      setToastType('success');
     } catch (error) {
-      setToastMessage('Failed to delete template.'); // Show error toast
+      // Set error message and type
+      setToastMessage(`Failed to move template "${templateToDelete.name}" to trash.`);
+      setToastType('error');
       console.error(error);
     } finally {
       closeDeleteModal(); // Close the modal in either case
@@ -135,7 +140,14 @@ function DashboardPage() {
 
   return (
     <div>
-      {toastMessage && <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />}
+      {/* Pass toastType to the Toast component */}
+      {toastMessage && (
+        <Toast
+          message={toastMessage}
+          type={toastType}
+          onDismiss={() => setToastMessage(null)}
+        />
+      )}
       <Modal
         isOpen={isModalOpen}
         onClose={closeDeleteModal}
@@ -145,7 +157,7 @@ function DashboardPage() {
         cancelText="Cancel"       
         confirmButtonVariant="danger"
       >
-        Are you sure you want to delete the template "{templateToDelete?.name}"? This action cannot be undone.
+        Are you sure you want to move the template "{templateToDelete?.name}" to the trash? It will be permanently deleted after 30 days.
       </Modal>
       {/* Page Header */}
       <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
