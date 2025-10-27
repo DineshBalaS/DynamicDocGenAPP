@@ -118,50 +118,44 @@ function TemplateCard({ template, onDelete, isTrashContext = false, onRestore })
         )}
       </div>
 
-      {/* More Options Button and Dropdown Menu */}
-      <div ref={menuRef} className="absolute top-2 right-2">
-        {/* Button: Visibility is also tied to the 'isActive' state */}
-        <button
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className={`p-1.5 rounded-full bg-gray-100 bg-opacity-50 text-gray-600 hover:bg-gray-200 transition-opacity ${
-            isActive ? "opacity-100" : "opacity-0"
-          }`}
-        >
-          <MoreVerticalIcon />
-        </button>
+      {/* Only render this entire block if NOT in trash context */}
+      {!isTrashContext && (
+        <div ref={menuRef} className="absolute top-2 right-2">
+          {/* Kebab Button */}
+          <button
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            aria-label="More options" // --- Minor Improvement: Added aria-label ---
+            className={`p-1.5 rounded-full bg-gray-100 bg-opacity-50 text-gray-600 hover:bg-gray-200 transition-opacity ${
+              // Show button when active, hide completely otherwise
+              isActive ? "opacity-100" : "opacity-0 pointer-events-none" // --- FIX: Re-added pointer-events-none ---
+            }`}
+          >
+            <MoreVerticalIcon />
+          </button>
 
-        {isMenuOpen && (
-          <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 ring-1 ring-black ring-opacity-5">
-            <div className="py-1">
-              {/* Conditional Menu Items */}
-              {!isTrashContext && (
-                <>
-                  <a // Keep Edit only if not in trash
-                    href="#" // Replace with actual edit link/handler later
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    Edit
-                  </a>
-                  <button // Keep Delete only if not in trash
-                    onClick={handleDeleteClick}
-                    className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                  >
-                    Delete
-                  </button>
-                </>
-              )}
-              {isTrashContext && ( // Show Restore only if in trash
-                <button
-                  onClick={handleRestoreClick}
-                  className="block w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 flex items-center" // Added flex items-center
+          {/* Dropdown Menu - Renders only when isMenuOpen is true */}
+          {isMenuOpen && (
+            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 ring-1 ring-black ring-opacity-5">
+              <div className="py-1">
+                {/* Edit Action */}
+                <a
+                  href="#" // TODO: Replace with actual edit link/handler
+                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                 >
-                  <RestoreIcon /> Restore
+                  Edit
+                </a>
+                {/* Delete Action */}
+                <button
+                  onClick={handleDeleteClick}
+                  className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                >
+                  Delete
                 </button>
-              )}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
