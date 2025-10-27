@@ -203,3 +203,52 @@ class S3Service:
         except ClientError as e:
             print(f"S3 Trash Error: {e}")
             raise S3Error(f"Failed to move file '{s3_key}' to trash.")
+    
+    def restore_file_from_trash(self, s3_key_in_trash: str) -> str:
+        """
+        Moves a file out of the 'trash/' directory back to the root of the S3 bucket.
+
+        This performs a copy to the root location and then deletes the object
+        from the trash directory.
+
+        Args:
+            s3_key_in_trash: The unique key of the object within the trash/ prefix.
+
+        Returns:
+            The original key of the object in the root directory.
+
+        Raises:
+            ValueError: If the provided key does not start with 'trash/'.
+            S3Error: If the copy or delete operation fails.
+        """
+        if not s3_key_in_trash.startswith('trash/'):
+            raise ValueError(f"Key '{s3_key_in_trash}' does not appear to be in the trash directory.")
+
+        # Calculate the original key by removing the prefix
+        original_key = s3_key_in_trash[len('trash/'):]
+        if not original_key: # Handle edge case of just "trash/"
+             raise ValueError("Invalid key provided for restoration.")
+
+        copy_source = {'Bucket': self.bucket_name, 'Key': s3_key_in_trash}
+
+        try:
+            # 1. Copy the object back to the root location
+            current_app.logger.info(f"Restoring {s3_key_in_trash} to {original_key}")
+            self.s3_client.copy_object(
+                CopySource=copy_source,
+                Bucket=self.bucket_name,
+                Key=original_key
+            )
+
+            # 2. Delete the object from the trash directory only after the copy succeeds
+            current_app.logger.info(f"Deleting object {s3_key_in_trash} from trash after restore")
+            self.s3_client.delete_object(
+                Bucket=self.bucket_name,
+                Key=s3_key_in_trash
+            )
+
+            return original_key
+        except ClientError as e:
+            current_app.logger.error(f"S3 Restore Error for {s3_key_in_trash}: {e}")
+            # Consider more specific error handling if needed (e.g., if copy succeeds but delete fails)
+            raise S3Error(f"Failed to restore file '{s3_key_in_trash}' from trash.")

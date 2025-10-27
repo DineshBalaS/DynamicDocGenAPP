@@ -181,11 +181,23 @@ def delete_template(template_id):
             if record is None:
                 return jsonify({"error": "Template not found."}), 404
             
-            s3_key = record[0]
-
-            # Step 3: Move S3 Object to Trash
+            original_s3_key = record[0]
+            
+            # Step 3: Move S3 Object to Trash and capture the new key
             s3 = get_s3()
-            s3.move_file_to_trash(s3_key)
+            # Ensure the key isn't already in trash (belt-and-suspenders check)
+            if original_s3_key.startswith('trash/'):
+                 current_app.logger.warning(f"Attempted to delete template {template_id} which seems already in trash based on s3_key: {original_s3_key}")
+                 # You might choose to return an error or proceed cautiously. Let's return 404 for consistency.
+                 return jsonify({"error": "Template already in trash."}), 404
+
+            new_s3_key_in_trash = s3.move_file_to_trash(original_s3_key)
+
+            # Step 4: Update the timestamp AND the s3_key in the database
+            cur.execute(
+                "UPDATE templates SET deleted_at = CURRENT_TIMESTAMP, s3_key = %s WHERE id = %s",
+                (new_s3_key_in_trash, template_id)
+            )
 
             # Step 4: update the timestamp in the database
             cur.execute("UPDATE templates SET deleted_at = CURRENT_TIMESTAMP WHERE id = %s", (template_id,))
@@ -404,26 +416,54 @@ def get_trashed_templates():
 def restore_template(template_id):
     """
     Endpoint to restore a soft-deleted template from the trash.
+    Moves the file from S3 trash back to root and updates the database record.
     """
     db = get_db()
+    s3_key_in_trash = None # Initialize variable to help with logging on failure
+
     try:
         with db.cursor() as cur:
-            # Check if the template exists and is actually in the trash
-            cur.execute("SELECT id FROM templates WHERE id = %s AND deleted_at IS NOT NULL", (template_id,))
+            # Step 1: Fetch the s3_key along with the ID, ensuring it's in the trash
+            cur.execute("SELECT id, s3_key FROM templates WHERE id = %s AND deleted_at IS NOT NULL", (template_id,))
             record = cur.fetchone()
 
             if record is None:
                 return jsonify({"error": "Template not found in trash."}), 404
-            
-            # Update the deleted_at timestamp to NULL
-            cur.execute("UPDATE templates SET deleted_at = NULL WHERE id = %s", (template_id,))
-            
+
+            # Store the s3_key which should include the 'trash/' prefix
+            s3_key_in_trash = record[1]
+
+            # Step 2: Restore the file from S3 trash BEFORE updating the database
+            s3 = get_s3()
+            # This returns the key *without* the 'trash/' prefix
+            original_s3_key = s3.restore_file_from_trash(s3_key_in_trash)
+
+            # Step 3: Update the database record: set deleted_at to NULL
+            #         AND set s3_key back to the original key (without 'trash/')
+            cur.execute(
+                "UPDATE templates SET deleted_at = NULL, s3_key = %s WHERE id = %s",
+                (original_s3_key, template_id)
+            )
+
             db.commit()
 
         return jsonify({"message": "Template restored successfully."}), 200
 
+    except S3Error as e:
+        # Handle S3 specific errors
+        db.rollback()
+        current_app.logger.error(f"S3 Error restoring template {template_id} (key: {s3_key_in_trash}): {e}")
+        return jsonify({"error": f"An error occurred with storage while restoring: {e}"}), 500
+    except ValueError as e: # Catch the ValueError from s3_service if key prefix is wrong
+        db.rollback()
+        current_app.logger.error(f"ValueError restoring template {template_id} (key: {s3_key_in_trash}): {e}")
+        return jsonify({"error": str(e)}), 400
     except psycopg2.DatabaseError as e:
         db.rollback()
-        print(f"Error restoring template {template_id}: {e}")
+        current_app.logger.error(f"Database Error restoring template {template_id}: {e}")
         return jsonify({"error": "An internal error occurred while restoring the template."}), 500
+    except Exception as e: # Catch any other unexpected errors
+        db.rollback()
+        current_app.logger.error(f"Unexpected error restoring template {template_id}: {e}")
+        return jsonify({"error": "An unexpected server error occurred."}), 500
     
