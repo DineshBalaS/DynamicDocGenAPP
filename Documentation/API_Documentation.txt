@@ -296,3 +296,54 @@ JSON
 {
     "error": "An unexpected server error occurred."
 }
+
+---
+
+### ## `POST /api/templates/<template_id>/restore`
+This endpoint restores a soft-deleted template from the trash.
+* **Purpose:** To undo a soft-delete action and make the template available again.
+* **Method**: `POST`
+* **Input:** The **ID** of the template to be restored, passed as part of the URL path.
+* **Process:**
+    1.  Verifies that a template with the given ID exists and has a non-NULL `deleted_at` timestamp.
+    2.  Updates the template's record in the **PostgreSQL database**, setting the `deleted_at` column back to `NULL`.
+    3.  **(Note:** Assumes the S3 file move to `trash/` does not need to be reversed manually; the application logic will now use the original `s3_key` again. Alternatively, the backend could move the file back).
+* **Output:** A success or failure confirmation message.
+* **Responses**:
+    * ✅ **Success Response** (`200 OK`): Confirms the template was restored.
+        * Example Body: `{"message": "Template restored successfully."}`
+    * ❌ **Error Responses**:
+        * `404 Not Found`: The specified template ID does not exist or is not currently in the trash.
+            * Example Body: `{"error": "Template not found in trash."}`
+        * `500 Internal Server Error`: An error occurred during the database update.
+            * Example Body: `{"error": "An internal error occurred while restoring the template."}`
+---
+### ## `GET /api/templates/trash`
+This endpoint retrieves a list of all templates that have been soft-deleted (moved to the trash).
+* **Purpose:** To fetch the contents of the trash for display on the frontend.
+* **Method**: `GET`
+* **Input:** None.
+* **Process:** Queries the PostgreSQL database for all records in the `templates` table where the `deleted_at` column `IS NOT NULL`. Orders results by deletion date, newest first.
+* **Output:** A JSON array where each object represents a trashed template, including its `id`, `name`, `created_at`, and `deleted_at` timestamp.
+* **Responses**:
+    * ✅ **Success Response** (`200 OK`): Returns a JSON array of trashed template objects.
+        * Example Body:
+            ```json
+            [
+                {
+                    "id": 5,
+                    "name": "Old Quarterly Report",
+                    "created_at": "2025-08-15T10:00:00Z",
+                    "deleted_at": "2025-10-27T18:30:00Z"
+                },
+                {
+                    "id": 2,
+                    "name": "Draft Proposal",
+                    "created_at": "2025-09-01T11:00:00Z",
+                    "deleted_at": "2025-10-26T09:15:00Z"
+                }
+            ]
+            ```
+    * ❌ **Error Response** (`500 Internal Server Error`): A database error occurred.
+        * Example Body: `{"error": "A database error occurred while fetching trashed items."}`
+---
