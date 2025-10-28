@@ -112,64 +112,73 @@ def generate_presentation(template_stream: BytesIO, data: dict, s3_service) -> B
 
             # --- List Replacement Logic ---
             found_list_in_shape = False
+            target_para_idx = -1
+            source_font = None
+            list_ph_name = None
+            target_para_obj = None # Store the paragraph object itself
+
+            # Find the paragraph containing the list placeholder first
             for para_idx, para in enumerate(shape.text_frame.paragraphs):
                 list_match = list_pattern.search(para.text)
-                if list_match and para.runs: # Ensure there are runs to get style from
-                    ph_name = list_match.group(1)
-                    items = data.get(ph_name, []) # Expect data[ph_name] to be a list
-
-                    # --- Store Font Properties from the first run ---
-                    source_font = para.runs[0].font
-                    # --- End Store Font Properties ---
-
-                    # --- Clear the original paragraph that contained the placeholder ---
-                    # We'll reuse this paragraph for the first item. Clear its runs.
-                    for run in list(para.runs): # Iterate copy to allow removal
-                         p = run._r.getparent()
-                         p.remove(run._r)
-                    para.text = "" # Ensure text is empty if no runs were present initially
-                    # --- End Clear Original Paragraph ---
-
-                    tf = shape.text_frame # Get the text frame
-
-                    if items and isinstance(items, list) and items[0] is not None:
-                        # --- Apply first item to the existing paragraph ---
-                        first_item_run = para.add_run()
-                        first_item_run.text = str(items[0])
-                        para.level = 0 # Ensure it's a top-level bullet
-                        _transfer_font_properties(source_font, first_item_run.font) # Apply stored font
-                        # --- End Apply First Item ---
-
-                        # --- Add subsequent items as NEW paragraphs with stored font ---
-                        for item in items[1:]:
-                            new_p = tf.add_paragraph()
-                            new_p.text = str(item) # Set text directly first
-                            new_p.level = 0
-                            if new_p.runs: # Check if setting text created a run
-                                _transfer_font_properties(source_font, new_p.runs[0].font) # Apply stored font
-                            else: # If not, add a run and apply
-                                run = new_p.add_run()
-                                run.text = str(item) # Text might need to be set again on run
-                                _transfer_font_properties(source_font, run.font)
-                        # --- End Add Subsequent Items ---
-
+                if list_match:
+                    if para.runs:
+                        source_font = para.runs[0].font # Store font from the first run
                     else:
-                        # --- Handle "None" case, applying stored font ---
-                        none_run = para.add_run()
-                        none_run.text = "None"
-                        para.level = 0
-                        _transfer_font_properties(source_font, none_run.font) # Apply stored font
-                        # --- End Handle "None" Case ---
+                        source_font = None
+                    target_para_idx = para_idx
+                    target_para_obj = para # Keep the paragraph object
+                    list_ph_name = list_match.group(1)
+                    break # Found the paragraph, stop searching
 
-                    # Disable auto-fitting for the shape after handling the list
-                    tf.auto_size = MSO_AUTO_SIZE.NONE
-                    # tf.word_wrap = True # Optional
+            # Process the list if a placeholder paragraph was found
+            if target_para_idx != -1 and list_ph_name is not None and target_para_obj is not None:
+                items = data.get(list_ph_name, []) # Expect data[list_ph_name] to be a list
+                tf = shape.text_frame # Get the text frame
 
-                    found_list_in_shape = True # Mark that we handled a list in this shape
-                    break # Stop checking paragraphs in this shape once a list placeholder is found & processed
+                # *** FIX START: Replace original paragraph ***
+                # Get the parent element (text body)
+                txBody = target_para_obj._element.getparent()
+                # Remove the original paragraph's XML element entirely
+                txBody.remove(target_para_obj._element)
+
+                # Now add new paragraphs for each item (or "None")
+                if items and isinstance(items, list):
+                    # --- Add all items as NEW paragraphs with stored font ---
+                    for item_idx, item in enumerate(items):
+                        new_p = tf.add_paragraph()
+                        new_p.level = 0 # Set bullet level first
+                        new_p.text = str(item) # Then set text
+
+                        # Apply stored font properties to the first run
+                        if source_font and new_p.runs:
+                            _transfer_font_properties(source_font, new_p.runs[0].font)
+                        elif source_font: # Handle case where item might be empty string
+                            run = new_p.add_run() # Ensure run exists
+                            _transfer_font_properties(source_font, run.font)
+                    # --- End Add Items ---
+
+                else: # Handle empty list or invalid data type
+                    # --- Handle "None" case by adding a new paragraph ---
+                    new_p = tf.add_paragraph()
+                    new_p.level = 0 # Set bullet level first
+                    new_p.text = "None" # Then set text
+                    # Apply stored font properties
+                    if source_font and new_p.runs:
+                        _transfer_font_properties(source_font, new_p.runs[0].font)
+                    elif source_font:
+                         run = new_p.add_run()
+                         _transfer_font_properties(source_font, run.font)
+                    # --- End Handle "None" Case ---
+                # *** FIX END ***
+
+                # --- Text Frame Properties ---
+                tf.auto_size = MSO_AUTO_SIZE.SHAPE_TO_FIT_TEXT
+                tf.word_wrap = True
+
+                found_list_in_shape = True # Mark that we handled a list in this shape
 
             if found_list_in_shape:
-                continue
+                continue # Skip standard text replacement for this shape
 
             # --- Text Replacement Logic (preserving formatting) ---
                         # --- Text Replacement Logic (preserving formatting) ---
