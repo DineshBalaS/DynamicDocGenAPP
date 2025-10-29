@@ -1,0 +1,744 @@
+## Initial Phase: Project Setup & Foundation 🏗️
+The goal of this phase is to create a clean, organized, and scalable starting point for your React application, with all necessary configurations in place to support your AWS deployment plan.
+
+1. Finalize Project Setup This step ensures your local development environment is ready and mirrors the structure we've planned.
+
+Initialize Project: You've already done this by creating a Vite + React project and initializing Tailwind CSS.
+
+Install Core Dependencies: We'll install the essential libraries for handling API calls and navigation. Open your terminal in the AkkaApp folder and run:
+
+Bash
+
+npm install axios react-router-dom
+
+Create Folder Structure: Inside your src/ directory, create the planned folders: api, components, hooks, and pages. This organizes your code for the rest of the project.
+
+2. Configure for AWS Deployment Based on your decision to use AWS, we'll configure the project to work seamlessly with your ECR/App Runner backend. The clear choice for your frontend is AWS Amplify, which is designed to host modern web apps and connects directly to your code repository for easy, continuous deployment.
+
+Set Environment Variables: In the root of your frontend project, create a file named .env. Inside it, add the URL for your local Flask backend:
+
+REACT_APP_API_BASE_URL=http://127.0.0.1:5000
+This tells your app where to send API requests when you're developing on your machine. When you deploy to AWS Amplify, you will set this same variable in the Amplify console to point to your live AWS App Runner URL.
+
+Simplify CORS Policy: Since you won't use a separate staging environment, your backend's CORS policy is now much simpler. It only needs to allow requests from two places: http://localhost:5173 (your Vite dev server) and the final https://your-app-name.amplifyapp.com URL.
+
+3. Establish the API Service Layer This creates a clean, dedicated place for all backend communication, making the code much easier to manage.
+
+Create Axios Instance: In src/api/, create a file named axiosConfig.js. This file will set up a central axios instance that automatically uses the REACT_APP_API_BASE_URL from your .env file.
+
+Define API Functions: In src/api/, create the templateService.js file. Here, you'll write the functions that will call your backend endpoints, like getTemplates() and uploadForAnalysis().
+
+4. Implement Basic Error Handling & Logging Per your request, we'll set up a simple but effective way to handle errors.
+
+Create a Toast Component: In src/components/ui/, create a basic Toast.jsx component. This component will be used to display subtle, simple error messages to the user when an API call fails.
+
+
+Implement Console Logging: In your templateService.js functions, we will wrap all API calls in try...catch blocks. If an error occurs, we will show the toast notification to the user and log the detailed technical error to the browser's console. This provides the "log" the client can use for debugging without needing a complex external service.
+
+By the end of this phase, you'll have a robust project foundation that is correctly configured for your AWS deployment target, with a clean structure ready for building the visual components.
+
+## Phase 2 Checklist & Plan
+Here is a step-by-step plan for building the static UI, including how we'll test each part.
+
+### Step 1: Create the Main Application Layout
+We'll start by creating the main frame of the application—the header and content area—to ensure a consistent look on every page.
+
+Implementation:
+
+Create a Header.jsx component in src/components/common/. This will contain your app's title or logo.
+
+Create a MainLayout.jsx component in src/components/layout/. This component will render the Header at the top and then render the specific page content below it.
+
+Update App.jsx to wrap all your page routes within this MainLayout component.
+
+Testing & Verification:
+
+✅ Visual Check: When you run the app, you should see your new header permanently fixed at the top of the page.
+
+✅ Navigation Check: As you navigate between the homepage (/) and the upload page (/upload), the content below the header should change, but the header itself should remain in place.
+
+### Step 2: Build the Static Dashboard Page
+Next, we'll build the main dashboard that users will see, which primarily consists of a grid of template cards.
+
+Implementation:
+
+Create a TemplateCard.jsx component in src/components/templates/. It will be a styled card that accepts props like a template name.
+
+In src/pages/DashboardPage.jsx, create a hardcoded array of fake data (e.g., const mockTemplates = [{ id: 1, name: 'Monthly Business Review' }, { id: 2, name: 'Client Proposal' }];).
+
+Use this mockTemplates array to render a grid of your TemplateCard components.
+
+Add the styled + Upload New Template button to the page.
+
+Testing & Verification:
+
+✅ Visual Check: The dashboard should display a styled grid of template cards, each showing the name from your hardcoded data, perfectly matching your UI design.
+
+### Step 3: Build the Multi-Step Upload Workflow
+This is the most interactive part of the static build. We'll create the three-step process for uploading a new template within a single page component.
+
+Implementation:
+
+In src/pages/UploadWorkflowPage.jsx, use a React state (useState) to track the current step (e.g., step 1, step 2, step 3).
+
+Use conditional rendering to show the UI for the active step and hide the others.
+
+Step 1 UI: Build the initial file upload screen with a prominent upload button or drag-and-drop area.
+
+Step 2 UI: Build the placeholder review screen. Create a PlaceholderTag.jsx component in src/components/templates/ and use a hardcoded array of strings (e.g., ['name', 'date']) to display the tags.
+
+Step 3 UI: Build the final save screen with the "Template Name" input and the "Save Template" and "Generate Now" buttons.
+
+Testing & Verification:
+
+✅ Interaction Check: You should be able to click through the workflow. Clicking the "Upload" button takes you to step 2, and clicking "Confirm & Continue" takes you to step 3.
+
+✅ Visual Check: Each step should appear exactly as designed in your UI documents, with all buttons, inputs, and placeholder tags correctly styled.
+
+After completing these steps, you will have a fully styled, clickable prototype of your application, ready for backend integration in Phase 3.
+
+## The Goal of Phase 3 🔗
+The goal of this phase is to systematically connect your frontend to your backend, replacing every piece of mock data and static functionality with live API calls. By the end of this phase, your application will be fully functional, capable of uploading, saving, listing, deleting, and generating presentations.
+
+## Phase 3 Integration Plan & Checklist
+Here is a step-by-step plan. We will focus on one feature at a time, implement the frontend logic, and verify it works before moving to the next.
+
+### Step 1: Connect the Dashboard to GET /api/templates
+First, we'll make the dashboard display real templates from your database.
+
+Implementation:
+
+In src/pages/DashboardPage.jsx, import getTemplates from your templateService.js file.
+
+Use a useEffect hook to call this function when the component first loads.
+
+Use a useState hook to store the fetched templates.
+
+Replace the mockTemplates array with this new state variable. The component will now render real data.
+
+Add loading and error states: display a spinner while fetching and an error message if the API call fails.
+
+Verification:
+
+✅ Visual Check: The dashboard should now display the actual templates that exist in your PostgreSQL database. If the database is empty, it should show an empty screen (which we'll improve later) instead of the mock data.
+
+### Step 2: Implement the Full Template Upload Workflow
+This is the most complex step, connecting all three parts of the upload page to three different backend endpoints.
+
+Implementation:
+
+File Analysis (POST /api/upload): In UploadWorkflowPage.jsx, when a user selects a file in Step 1, we will call a new uploadForAnalysis function in templateService.js. This function will send the file and receive the list of placeholders, which we'll store in state.
+
+State Management: The placeholder list from the API response will now populate the review screen in Step 2, replacing the mock data.
+
+Template Saving (POST /api/save_template): In Step 3, when the user clicks "Save Template," we'll call a new saveTemplate function in templateService.js. This function must send multipart/form-data containing the template name, the final list of placeholders (as a JSON string), and the original file itself. On success, we will navigate the user back to the dashboard.
+
+Verification:
+
+✅ End-to-End Test: Perform a full upload. Select a .pptx file, review the auto-detected placeholders, give it a name, and click "Save." You should be redirected to the dashboard, where your new template now appears in the list. Check your S3 bucket and database to confirm the records were created.
+
+### Step 3: Implement Template Deletion (DELETE /api/templates/<id>)
+Next, we'll activate the delete functionality on the dashboard.
+
+Implementation:
+
+Create a deleteTemplate function in templateService.js.
+
+On the DashboardPage.jsx, add an onClick handler to the "delete" button (or the kebab menu option) on each TemplateCard.
+
+This handler will show a confirmation modal ("Are you sure?"). If the user confirms, it will call the deleteTemplate function with the template's ID.
+
+On success, it will refresh the list of templates to show that the item has been removed.
+
+Verification:
+
+✅ Interaction Check: Go to the dashboard, delete a template, and confirm the action in the modal. The card should disappear from the UI. A subsequent page refresh should confirm it's gone. Check your database to confirm the deleted_at timestamp is set.
+
+### Step 4: Implement the Presentation Generation Workflow
+This final step connects the data entry form to the /generate endpoint and handles the file download.
+
+Implementation:
+
+Data Entry Page: We will create the DataEntryPage.jsx. This page will receive a templateId from the URL. It will fetch the template details (including its placeholders array) to dynamically build the form.
+
+Asset Uploads (POST /api/assets/upload): For image placeholders, the file input's onChange handler will immediately call a new uploadAsset function in templateService.js. This function will upload the image and return the temporary s3_key, which we'll store in our form's state.
+
+Generation (POST /api/generate): When the user clicks the final "Generate Presentation" button, we will call a generatePresentation function in templateService.js. This function will send a JSON payload containing the templateId and the data object (which includes the text values and the s3_keys for images).
+
+File Download: The generatePresentation function must be configured to handle a blob response from the server. We will write the utility code to take this blob and trigger a browser download prompt for the user.
+
+Verification:
+
+✅ End-to-End Test: Select a template from the dashboard. Fill out the dynamic form, including uploading an image. Click "Generate Presentation." A loading spinner should appear, followed by a browser download prompt for the finished .pptx file. Open the downloaded file to confirm all placeholders were correctly filled.
+
+Test Plan: Image Search Feature
+1. UI and Visual Testing (The "Look and Feel" Test)
+This section focuses on ensuring the user interface looks correct in all states.
+
+Initial State:
+
+Navigate to the DataEntryPage.
+
+Verify that the ImageUploader component correctly displays two distinct buttons: "Upload Image" and "Search Image".
+
+Modal Appearance:
+
+Click the "Search Image" button.
+
+Verify the modal opens, is centered, and has the title "Search for an Image".
+
+Verify it contains a search input field and a "Search" icon button.
+
+Verify the footer contains a "Cancel" and a disabled "Confirm and Upload" button.
+
+Component States:
+
+Perform a search.
+
+Verify that a skeleton loader (the pulsing grey boxes) appears while waiting for results.
+
+Search for a term with no results (e.g., "asdfghjkl"). Verify the UI shows a message like "No images found for...".
+
+Click on an image from the results. Verify it is highlighted with a distinct border (a blue or teal ring).
+
+2. Functional "Happy Path" Testing (The "Does it Work?" Test)
+This is the main end-to-end test to ensure the feature works as intended under normal conditions.
+
+Navigate to the DataEntryPage.
+
+Click the "Search Image" button to open the modal.
+
+Type a valid search term (e.g., "Modern building") into the search bar and press Enter or click the search icon.
+
+Verify that a grid of images appears.
+
+Click on a single image to select it. Verify it becomes highlighted.
+
+Click the "Confirm and Upload" button.
+
+Verify the modal closes.
+
+Verify the ImageUploader component on the DataEntryPage now shows a preview of the selected image.
+
+Fill out all other required text fields on the form.
+
+Click "Review and Generate" and proceed to the ReviewPage.
+
+Verify that the thumbnail of the image you selected from the web is correctly displayed on the review page.
+
+3. Edge Case and Negative Testing (The "What If?" Test)
+This section tests how the feature handles non-standard user behavior.
+
+Empty Search: Click the search button with an empty input field. Verify no search is performed.
+
+Change of Mind: Open the modal, select an image, but then click "Cancel". Verify the modal closes and the ImageUploader is unchanged.
+
+Click Outside: Open the modal and click the faded area outside of it. Verify the modal closes.
+
+Reselection: Perform a search, select one image, then click a different image. Verify the selection highlight moves to the new image.
+
+Regression Test: After testing the search feature, verify that the original "Upload Image" button still works correctly by selecting and uploading a file directly from your computer.
+
+4. Error Handling Testing (The "What Breaks?" Test)
+This is a critical step for a production-ready feature. Use your browser's Developer Tools (F12 > Network tab) to simulate network failures.
+
+Search Fails:
+
+In the Network tab, find a way to block requests. Right-click the search?q=... request and select "Block request URL".
+
+Perform a new search.
+
+Verify that the image grid area shows a clear error message (e.g., "Failed to fetch images.").
+
+Upload Fails:
+
+Unblock the search request and perform a successful search.
+
+Now, block the /api/assets/upload_from_url request URL.
+
+Select an image and click "Confirm and Upload".
+
+Verify the modal does not close.
+
+Verify a clear error message appears in the modal's footer (e.g., "Failed to upload the selected image.").
+
+Completing this test plan will give you high confidence that the feature is clean, robust, and ready for your users.
+
+a client-side filtering approach seems like the best fit. We'll fetch all templates once when the dashboard loads and then use React to filter the displayed list based on the user's search input directly in the browser.
+
+Here’s the plan:
+
+1. Frontend Changes (DashboardPage.jsx)
+Add Search State:
+
+Introduce a new state variable to hold the user's search query:
+
+JavaScript
+
+const [searchQuery, setSearchQuery] = useState('');
+Add Filtered List State:
+
+Introduce another state variable to hold the templates that match the search query. We'll keep the original templates state to hold the full list fetched from the API.
+
+JavaScript
+
+const [filteredTemplates, setFilteredTemplates] = useState([]);
+Add Search Input UI:
+
+Place a text input field near the top of the dashboard (e.g., below the header, above the grid).
+
+Control its value using the searchQuery state.
+
+Use an onChange handler to update searchQuery as the user types.
+
+JavaScript
+
+<input
+  type="text"
+  placeholder="Search templates..."
+  value={searchQuery}
+  onChange={(e) => setSearchQuery(e.target.value)}
+  className="mb-4 p-2 border rounded w-full sm:w-1/2 md:w-1/3" // Example styling
+/>
+Modify Initial Data Fetch (useEffect):
+
+When getTemplates successfully fetches data:
+
+Update the main templates state with the full list (as it does now).
+
+Also, update the filteredTemplates state with the same full list initially.
+
+Implement Filtering Logic (useEffect):
+
+Add a new useEffect hook that depends on searchQuery and the main templates list.
+
+Inside this effect:
+
+If searchQuery is empty, set filteredTemplates to the full templates list.
+
+If searchQuery has text, filter the templates array. Check if each template.name (case-insensitive) includes the searchQuery.
+
+Update filteredTemplates with the result of this filtering.
+
+JavaScript
+
+useEffect(() => {
+  if (!searchQuery) {
+    setFilteredTemplates(templates); // Show all if search is empty
+  } else {
+    const lowerCaseQuery = searchQuery.toLowerCase();
+    const filtered = templates.filter(template =>
+      template.name.toLowerCase().includes(lowerCaseQuery)
+    );
+    setFilteredTemplates(filtered);
+  }
+}, [searchQuery, templates]); // Re-run when search or original list changes
+Update Rendering:
+
+Change the part that maps templates to render TemplateCard components. Instead of mapping templates, map over filteredTemplates.
+
+JavaScript
+
+ // Old: {templates.map((template) => ( ... ))}
+ // New:
+ {filteredTemplates.map((template) => (
+   <TemplateCard key={template.id} template={template} onDelete={openDeleteModal} />
+ ))}
+Handle "No Results":
+
+Modify the renderContent function. If status is 'success' but filteredTemplates.length is 0 and searchQuery is not empty, display a "No templates found matching your search." message instead of the EmptyState component.
+
+2. Backend Changes (routes.py) & API Service (templateService.js)
+No changes needed! 🎉
+
+The existing GET /api/templates endpoint already returns all non-deleted templates.
+
+The getTemplates function in templateService.js already fetches this complete list.
+
+Why this approach fits your requirements:
+Clean & Less Complex: It keeps the logic contained mostly within the DashboardPage component. No complex backend search or database indexing is needed for this basic filtering.
+
+Robust: Works reliably as long as the number of templates isn't excessively large (e.g., many thousands, which is unlikely for a personal tool).
+
+Cost-Effective & Production Friendly: Minimizes backend load by fetching data only once per page load/refresh. This saves compute resources and potential costs.
+
+Optimistic Update Friendly: Deleting a template already updates the local state (templates). The filtering logic will automatically work correctly with the updated list without needing extra API calls.
+
+Responsive: Filtering happens instantly in the user's browser.
+
+-----
+
+## Code Report: Dashboard Search Feature Implementation
+
+**File:** `src/pages/DashboardPage.jsx`
+
+**Goal:** Add a client-side search functionality to filter the displayed template cards based on user input, with responsive UI adjustments and hover effects.
+
+-----
+
+### Step 1: Add State Variables
+
+  * **Purpose:** Introduce state to manage the search input text and the list of templates to be displayed after filtering.
+  * **Code Added:**
+    ```jsx
+    const [searchQuery, setSearchQuery] = useState('');
+    const [filteredTemplates, setFilteredTemplates] = useState([]);
+    ```
+
+-----
+
+### Step 2: Initialize Filtered Templates After Fetching
+
+  * **Purpose:** Ensure all templates are displayed initially when data is successfully fetched.
+  * **Code Added (inside the `fetchTemplates`'s `try` block):**
+    ```diff
+      const data = await getTemplates();
+      setTemplates(data);
+    + setFilteredTemplates(data); // Initialize filtered list
+      setStatus('success');
+    ```
+
+-----
+
+### Step 3: Implement Filtering Logic
+
+  * **Purpose:** Add a `useEffect` hook to update the `filteredTemplates` list whenever the `searchQuery` or the original `templates` list changes.
+  * **Code Added:**
+    ```jsx
+    useEffect(() => {
+      if (!searchQuery) {
+        setFilteredTemplates(templates);
+      } else {
+        const lowerCaseQuery = searchQuery.toLowerCase();
+        const filtered = templates.filter(template =>
+          template.name.toLowerCase().includes(lowerCaseQuery)
+        );
+        setFilteredTemplates(filtered);
+      }
+    }, [searchQuery, templates]);
+    ```
+
+-----
+
+### Step 4: Add Search Input UI
+
+  * **Purpose:** Add the text input field for the search bar, controlled by the `searchQuery` state. Render it conditionally.
+  * **Code Added (within the `return` statement's header section):**
+    ```jsx
+    {status === 'success' && templates.length > 0 && (
+      <div className="mb-6">
+        <input
+          type="text"
+          placeholder="Search templates..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="p-2 border border-gray-300 rounded-lg w-full sm:w-1/2 md:w-1/3 lg:w-1/4 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+        />
+      </div>
+    )}
+    ```
+
+-----
+
+### Step 5: Update Rendering to Use Filtered List
+
+  * **Purpose:** Modify the rendering logic to map over `filteredTemplates` instead of the original `templates` state.
+  * **Code Modified (inside `renderContent` function, `success` case):**
+    ```diff
+    - {templates.map((template) => (
+    + {filteredTemplates.map((template) => (
+        <TemplateCard key={template.id} template={template} onDelete={openDeleteModal} />
+      ))}
+    ```
+
+-----
+
+### Step 6: Handle "No Results Found"
+
+  * **Purpose:** Display a specific message when a search yields no results, distinguishing it from the initial empty state.
+  * **Code Modified (inside `renderContent` function, `success` case):**
+    ```diff
+      case 'success':
+        if (templates.length === 0) {
+          return <EmptyState />;
+    +   } else if (filteredTemplates.length === 0 && searchQuery) {
+    +      return (
+    +        <div className="text-center text-gray-500 mt-8">
+    +          No templates found matching "{searchQuery}".
+    +        </div>
+    +      );
+        } else {
+          return (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {filteredTemplates.map((template) => (
+                 // ... TemplateCard
+              ))}
+            </div>
+          );
+        }
+    ```
+
+-----
+
+### Step 7: Restructure Header and Apply Responsive Styles
+
+  * **Purpose:** Rearrange the header elements (title, search bar, button) using Flexbox to match the design, and hide/show elements based on screen size.
+  * **Code Modified (Header section in `return` statement):**
+      * Wrapped title, search input div, and action buttons div in a main `flex flex-wrap justify-between items-center gap-4 mb-6` container.
+      * Modified search input `div` classes to `hidden md:flex flex-grow justify-center max-w-lg relative`.
+      * Added a new `div` for action buttons (`flex items-center gap-2 flex-shrink-0`).
+      * Added a `<button>` for the search icon, visible only on small screens (`md:hidden`).
+      * Defined `SearchIcon` and `PlusIcon` components.
+
+-----
+
+### Step 8: Add Icon Inside Search Input
+
+  * **Purpose:** Place the `SearchIcon` visually inside the left part of the search input field.
+  * **Code Modified (Search input block):**
+      * Added `relative` class to the search input container `div`.
+      * Added a new `div` *before* the input to hold the `SearchIcon`, styled with `absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400`.
+      * Added `pl-10` to the input's `className` for padding.
+
+-----
+
+### Step 9: Verify and Adjust Input Padding
+
+  * **Purpose:** Correct the overlap between the icon and the placeholder text by ensuring sufficient left padding on the input.
+  * **Code Modified (Input element `className`):**
+      * Confirmed/adjusted `pl-10` (or `pl-11`/`pl-12` if needed) was present in the input's class list.
+    <!-- end list -->
+    ```diff
+    - className="p-2 pl-10 ..." // Example initial state
+    + className="p-2 pl-10 ..." // Confirmed or adjusted value
+    ```
+
+-----
+
+### Step 10: Add Hover Effects and Transitions
+
+  * **Purpose:** Implement the teal border/shadow hover effect on the search bar and the color change on the icon.
+  * **Code Modified:**
+      * Added `group` class to the search input container `div`.
+      * Added `group-hover:text-teal-500 transition-colors duration-300 ease-in-out` to the icon's `div`.
+      * Added `hover:border-teal-500 hover:shadow-md transition-all duration-300 ease-in-out` to the input's `className`.
+
+-----
+
+This report covers all the significant changes applied to `DashboardPage.jsx` during this feature implementation.
+
+Okay, aiming for a **smooth, flowing slide-and-fade** effect that's noticeable but **simple, clean, and production-friendly**.
+
+Based on your components and requirements, using the **Framer Motion** library is the ideal approach. It integrates seamlessly with React and React Router, making complex animations like slide-and-fade relatively straightforward while remaining performant.
+
+Here’s the plan:
+
+-----
+
+## 1\. Install Framer Motion
+
+First, add the library to your frontend project:
+
+```bash
+npm install framer-motion
+```
+
+-----
+
+## 2\. Modify `MainLayout.jsx` to Orchestrate Animations
+
+We'll use Framer Motion's `AnimatePresence` component here. It detects when a direct child component enters or leaves the React tree and allows us to animate those transitions.
+
+```diff
+// src/components/layout/MainLayout.jsx
+
+import React from 'react';
+- import { Outlet } from 'react-router-dom';
++ import { Outlet, useLocation } from 'react-router-dom';
++ import { motion, AnimatePresence } from 'framer-motion';
+import Header from '../common/Header';
+
++// Define the animation variants
++ const pageVariants = {
++   initial: {
++     opacity: 0,
++     x: '100vw', // Start off-screen to the right
++   },
++   in: {
++     opacity: 1,
++     x: 0, // Animate to on-screen
++   },
++   out: {
++     opacity: 0,
++     x: '-100vw', // Animate off-screen to the left
++   },
++ };
++
++// Define the transition properties
++ const pageTransition = {
++   type: 'tween', // Smooth interpolation
++   ease: 'anticipate', // Easing function for a slightly bouncy feel
++   duration: 0.4, // Animation duration in seconds
++ };
+
+
+function MainLayout() {
++ const location = useLocation(); // Get current location for the key prop
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col"> {/* Added flex flex-col */}
+      <Header />
+      {/* AnimatePresence needs to wrap the part that changes */}
++     <AnimatePresence mode="wait"> {/* 'wait' ensures exit animation finishes first */}
+        <main className="container mx-auto px-6 py-8 flex-grow"> {/* Added flex-grow */}
+          {/* Child routes will be rendered here */}
+          {/* Add motion.div wrapper with key, variants, and transition */}
++         <motion.div
++           key={location.pathname} // Unique key tells AnimatePresence when page changes
++           initial="initial"
++           animate="in"
++           exit="out"
++           variants={pageVariants}
++           transition={pageTransition}
++         >
+            <Outlet />
++         </motion.div>
+        </main>
++     </AnimatePresence>
+    </div>
+  );
+}
+
+export default MainLayout;
+
+```
+
+-----
+
+## 3\. Explanation
+
+  * **`AnimatePresence`**: This component from Framer Motion detects when its direct children are added or removed. We use `mode="wait"` so the old page finishes animating *out* before the new page animates *in*.
+  * **`useLocation`**: We get the current URL `pathname` from React Router.
+  * **`motion.div`**: This wraps the `<Outlet />`. It's the component that actually gets animated.
+      * **`key={location.pathname}`**: This is crucial\! It tells `AnimatePresence` that the component *itself* has changed when the URL changes, triggering the enter/exit animations.
+      * **`initial`, `animate`, `exit`**: These props tell `motion.div` which state from the `pageVariants` object to use for each phase (entering, visible, exiting).
+      * **`variants={pageVariants}`**: Defines the styles for each animation state (`initial`, `in`, `out`). We set `opacity` for the fade and `x` (horizontal position) for the slide.
+      * **`transition={pageTransition}`**: Defines *how* the animation happens (duration, easing type). `tween` with `anticipate` easing often gives a nice, smooth but slightly dynamic feel.
+  * **CSS Changes**: Added `flex flex-col` to the outer div and `flex-grow` to `main` to ensure the layout behaves correctly, especially if pages have different heights.
+
+-----
+
+## Why this plan fits your requirements:
+
+  * **Smooth and Flowing**: Framer Motion uses optimized animations (often hardware-accelerated), and the chosen `tween` and `anticipate` easing contribute to this feel.
+  * **Slide and Fade**: The `pageVariants` explicitly define changes in both `opacity` (fade) and `x` position (slide).
+  * **Noticeable but Simple**: A `0.4` second duration is quick but clearly visible. The animation logic is contained and doesn't complicate page components.
+  * **Clean & Less Complex**: Framer Motion's declarative approach (`AnimatePresence`, `motion.div`, `variants`) keeps the animation logic tidy and separate from your page logic.
+  * **Robust & Production Friendly**: It's a widely used, well-maintained library designed for performance in React apps. The impact on bundle size is reasonable.
+  * **Cost-Effective**: All animation happens client-side; no backend resources are involved.
+
+This setup provides the slide-and-fade effect specifically when navigating between routes rendered within your `MainLayout`.
+
+Okay, I've reviewed the files. Based on your requirements for a clean, robust, and production-ready integration, here's the plan:
+
+## Plan: Integrating the Trash Feature
+
+This plan outlines the necessary steps to add a "Trash" view where users can see and restore soft-deleted templates.
+
+***
+
+### 1. Backend API Endpoints (Assumption)
+
+First, ensure these two **new endpoints** exist on your Flask backend:
+
+* `GET /api/templates/trash`: Fetches only the templates marked as deleted (`deleted_at IS NOT NULL`).
+* `POST /api/templates/{templateId}/restore`: Updates a specific template's `deleted_at` status back to `NULL`.
+
+***
+
+### 2. API Service Layer Updates (`src/api/templateService.js`)
+
+We'll add functions to interact with the new backend endpoints.
+
+* **Add `getTrashedTemplates` function:**
+    * Purpose: Fetch the list of soft-deleted templates.
+    * Action: Makes a `GET` request to `/api/templates/trash`.
+    * Returns: A promise resolving to an array of trashed template objects. Include standard error handling like in `getTemplates`.
+* **Add `restoreTemplate` function:**
+    * Purpose: Restore a specific template from the trash.
+    * Action: Takes a `templateId` and makes a `POST` request to `/api/templates/{templateId}/restore`.
+    * Returns: A promise resolving to the backend's success message. Include standard error handling.
+
+***
+
+### 3. Routing Setup (`src/App.jsx`)
+
+We need a dedicated URL for the trash page.
+
+* **Add New Route:** Define a new route within the existing `<Route path="/" element={<MainLayout />}>` block.
+    * Path: `/trash`
+    * Element: `<TrashPage />` (We'll create this component next).
+
+***
+
+### 4. Create Trash Page (`src/pages/TrashPage.jsx` - New File)
+
+This page will display the trashed items.
+
+* **Component Structure:** Create a new functional component `TrashPage`.
+* **Data Fetching:**
+    * Use `useState` to manage `trashedTemplates`, `status` ('loading', 'success', 'error'), and potential `toastMessage`.
+    * Use `useEffect` and `useCallback` (similar to `DashboardPage`) to call `getTrashedTemplates` on component mount.
+* **Rendering Logic:**
+    * Implement `renderContent` function similar to `DashboardPage` to handle loading (Spinner), error (ErrorState), and success states.
+    * If `status` is 'success' and `trashedTemplates` is empty, display a message like "Trash is empty."
+    * If templates exist, map over `trashedTemplates` and render a `TemplateCard` for each.
+* **Restore Action:**
+    * Define a `handleRestore` function that takes a `templateId`.
+    * This function will call `restoreTemplate(templateId)`.
+    * On success:
+        * Show a success toast ("Template restored.").
+        * Optimistically update the UI by removing the restored template from the `trashedTemplates` state (`setTrashedTemplates`).
+    * On failure: Show an error toast.
+
+***
+
+### 5. UI Integration and Navigation
+
+Connect the new page and actions to the existing UI.
+
+* **Header Link (`src/components/common/Header.jsx`):**
+    * Add a new `NavLink` component within the navigation `div`.
+    * `to="/trash"`
+    * Text: "Trash" (or potentially use a trash icon).
+    * Apply the same `style` and `className` logic as the other links for consistency and active state indication.
+* **Dashboard Deletion (`src/pages/DashboardPage.jsx`):**
+    * Locate the `handleDeleteConfirm` function.
+    * **Update Toast:** Change the success `setToastMessage` call from `'Template deleted successfully!'` to `'Template moved to trash.'`.
+    * *Verification:* Confirm it already uses the `deleteTemplate` service function (which maps to the backend's soft-delete endpoint). The existing optimistic update (`setTemplates`) is correct.
+* **Template Card (`src/components/templates/TemplateCard.jsx`):**
+    * **Add Props:** Modify the component to accept two new optional props: `isTrashContext` (boolean) and `onRestore` (function).
+    * **Conditional Actions (Inside the Card):**
+        * **Kebab Menu:**
+            * When `isTrashContext` is `true`, replace the "Delete" menu item with a "Restore" menu item.
+            * The "Restore" item's `onClick` should call `onRestore(template)` and close the menu.
+            * Consider hiding the "Edit" option in the trash context if it doesn't make sense.
+        * **Hover Overlay:**
+            * When `isTrashContext` is `true`, change the main hover button text from "Use Template" to "Restore".
+            * The `onClick` or `Link` target for this button should also call `onRestore(template)`. (Decide if you want a button *or* menu item for restore, probably not both overlay button *and* menu item).
+    * **Passing Props:**
+        * In `DashboardPage.jsx`, render `<TemplateCard ... onDelete={openDeleteModal} />` (no changes needed here).
+        * In the new `TrashPage.jsx`, render `<TemplateCard ... isTrashContext={true} onRestore={handleRestore} />`.
+
+### 6. Final Touches
+
+* **Toast Messages (`src/components/ui/Toast.jsx` & Calling Pages):** Ensure appropriate success/error messages appear for both moving to trash and restoring. Pass the correct `type` ('success' or 'error') to the Toast component.
+* **Styling:** Ensure the "Trash" link in the header and the elements on the `TrashPage` match the application's overall style.
+
+This plan creates a dedicated page for trashed items, reuses the existing `TemplateCard` component with minor modifications via props, updates the API service layer, and integrates the flow into the navigation and user feedback mechanisms.
+
+Code Report: Trash Feature Integration (Soft Delete & Restore)Date: October 27, 2025Objective: Implement a soft-delete ("Trash") functionality allowing users to move templates to a temporary trash area instead of immediate permanent deletion, with the ability to restore them. Trashed items are automatically permanently deleted after 30 days via S3 lifecycle rules (backend configuration).1. Backend Modifications (app/api/routes.py)Two new API endpoints were added, and one existing endpoint was modified to support the soft-delete logic.Added GET /api/templates/trash:Purpose: Fetches a list of templates that have been soft-deleted.Implementation: Queries the templates table for records where the deleted_at column IS NOT NULL. Returns a JSON array of these records.Added POST /api/templates/<template_id>/restore:Purpose: Restores a soft-deleted template.Implementation: Takes a template_id via the URL path. Verifies the template exists and deleted_at IS NOT NULL. Updates the corresponding record in the templates table, setting deleted_at = NULL. Returns a success message.Modified DELETE /api/templates/<template_id>:Purpose: Changed from permanent deletion to soft deletion.Implementation: Instead of deleting the database record, this endpoint now updates the deleted_at column of the specified template record to the current timestamp (CURRENT_TIMESTAMP). It also includes logic to move the corresponding file in S3 to a designated trash/ prefix (handled by s3_service.move_file_to_trash). Returns a message indicating the item was moved to trash.2. API Service Layer Modifications (src/api/templateService.js)Functions were added to interact with the new backend endpoints.Added getTrashedTemplates():Purpose: Makes a GET request to /api/templates/trash.Returns: Promise resolving to an array of trashed template objects. Includes error handling.Added restoreTemplate(templateId):Purpose: Makes a POST request to /api/templates/{templateId}/restore.Returns: Promise resolving to the backend success message. Includes error handling.Modified deleteTemplate(templateId):Purpose: Updated the user-facing error message thrown on failure to reflect "move template to trash" instead of "delete template". The endpoint called remains /api/templates/{templateId} (DELETE method).3. Frontend Routing Modifications (src/main.jsx)Routing was updated to include the new Trash page, using the createBrowserRouter configuration.Added Trash Route: A new route object was added to the children array of the main layout route definition:{
+  path: '/trash',
+  element: <TrashPage />,
+}
+Imported TrashPage: The TrashPage component was imported.Note: Routing logic previously in App.jsx using <Router>/<Routes>/<Route> components is now superseded by the createBrowserRouter definition in main.jsx.4. New Frontend Component (src/pages/TrashPage.jsx)A new page component was created to display and manage trashed items.Functionality:Fetches trashed templates using getTrashedTemplates on component mount.Manages loading, success, and error states for the data fetching process.Displays a Spinner during loading, an ErrorState component on fetch failure (with retry), and an EmptyTrashState component if no trashed items are found.Renders a grid of TemplateCard components, passing the fetched trashedTemplates.Provides a handleRestore function which calls the restoreTemplate API service. On success, it shows a toast notification and optimistically removes the restored template from the local state for immediate UI feedback.TemplateCard Usage: Passes isTrashContext={true} and onRestore={handleRestore} props to the TemplateCard components.5. UI Component ModificationsExisting UI components were updated to integrate the feature.src/components/common/Header.jsx:Added a NavLink component pointing to /trash.Includes a TrashIcon alongside the text "Trash".Uses existing styling logic for hover and active states.src/components/templates/TemplateCard.jsx:Props Added: Component now accepts isTrashContext (boolean, default false) and onRestore (function).Conditional Rendering (Hover Button): The main button shown on hover now displays "Restore" (and calls onRestore) if isTrashContext is true, otherwise it displays "Use Template" (as a Link).Conditional Rendering (Kebab Menu): The entire kebab menu button (MoreVerticalIcon) and its associated dropdown are now hidden (display: none effectively via conditional rendering) if isTrashContext is true. If isTrashContext is false, the menu shows "Edit" and "Delete" options as before.UI Polish: Added pointer-events-none to the hover overlay and kebab button when hidden (opacity 0) to prevent interaction with invisible elements. Added aria-label to the kebab button.src/pages/DashboardPage.jsx:Modal Text: Updated the confirmation modal text (title, body, confirm button) displayed when deleting a template to clearly state "Move to Trash" and mention the 30-day auto-deletion.Toast Message: Updated the success toast message shown after clicking the confirm button in the modal to "Template moved to trash." Added state (toastType) to handle error toasts correctly if the API call fails.SummaryThe Trash feature provides a safety net against accidental deletion by implementing a soft-delete pattern. Templates moved to trash are viewable on a dedicated /trash page and can be restored. The integration leverages existing components (TemplateCard, Toast, Modal) with conditional logic based on context (dashboard vs. trash view) and relies on new backend endpoints for data fetching and state modification. Automatic permanent deletion is handled by backend S3 configuration.

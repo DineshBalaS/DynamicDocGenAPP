@@ -42,6 +42,9 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
     
+    # Initialize CORS with the list of origins from the config
+    CORS(app, origins=app.config.get('CORS_ORIGINS'))
+    
     # Register the close_db function to be called on app teardown
     app.teardown_appcontext(close_db)
     

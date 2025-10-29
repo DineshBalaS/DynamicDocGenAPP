@@ -63,3 +63,4 @@ Thumbs.db
 
 # Ignore the file you generated to show the project tree
 tree.txt
+populate_db.py
