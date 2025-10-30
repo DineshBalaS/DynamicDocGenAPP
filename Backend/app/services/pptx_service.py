@@ -1,5 +1,6 @@
 import re
 from io import BytesIO
+from copy import deepcopy
 from pptx import Presentation
 from pptx.enum.text import MSO_AUTO_SIZE
 from pptx.enum.dml import MSO_COLOR_TYPE
@@ -134,42 +135,61 @@ def generate_presentation(template_stream: BytesIO, data: dict, s3_service) -> B
             if target_para_idx != -1 and list_ph_name is not None and target_para_obj is not None:
                 items = data.get(list_ph_name, []) # Expect data[list_ph_name] to be a list
                 tf = shape.text_frame # Get the text frame
-
-                # *** FIX START: Replace original paragraph ***
-                # Get the parent element (text body)
-                txBody = target_para_obj._element.getparent()
-                # Remove the original paragraph's XML element entirely
-                txBody.remove(target_para_obj._element)
-
-                # Now add new paragraphs for each item (or "None")
-                if items and isinstance(items, list):
-                    # --- Add all items as NEW paragraphs with stored font ---
-                    for item_idx, item in enumerate(items):
+                
+                # We will re-use the original placeholder paragraph for the first item.
+                # This preserves all paragraph formatting (bullets, indentation, etc.).
+                p = target_para_obj 
+                
+                if items and isinstance(items, list) and any(str(item).strip() for item in items):
+                    # Filter out any empty strings
+                    valid_items = [str(item) for item in items if str(item).strip()]
+                    
+                    # 1. Set the text for the first item (in the existing paragraph)
+                    p.clear() # Clear existing runs (like '{{list:name}}')
+                    run = p.add_run()
+                    run.text = valid_items[0]
+                    if source_font:
+                        _transfer_font_properties(source_font, run.font)
+                    
+                    # 2. Add subsequent items as new paragraphs
+                    for item_text in valid_items[1:]:
+                        # Add a new paragraph element
                         new_p = tf.add_paragraph()
-                        new_p.level = 0 # Set bullet level first
-                        new_p.text = str(item) # Then set text
 
-                        # Apply stored font properties to the first run
-                        if source_font and new_p.runs:
-                            _transfer_font_properties(source_font, new_p.runs[0].font)
-                        elif source_font: # Handle case where item might be empty string
-                            run = new_p.add_run() # Ensure run exists
+                        # --- START FIX ---
+                        # Get the <a:pPr> (paragraph properties) element from the original paragraph
+                        pPr_to_copy = p._element.pPr
+
+                        # Only proceed if the original paragraph *has* properties to copy
+                        if pPr_to_copy is not None:
+                            # Get the <a:pPr> element of the new paragraph,
+                            # CREATING IT if it doesn't exist. This is the fix.
+                            new_pPr = new_p._element.get_or_add_pPr()
+                            
+                            # Clear any default properties that might be on the new pPr
+                            new_pPr.clear()
+                            
+                            # Copy all XML attributes (like 'lvl', 'marL', etc.)
+                            new_pPr.attrib.update(pPr_to_copy.attrib)
+                            
+                            # Copy all child elements (like <a:buFont>, <a:buChar>, etc.)
+                            for child in pPr_to_copy:
+                                new_pPr.append(deepcopy(child))
+                        # --- END FIX ---
+                        
+                        # Add the text with the original font style
+                        run = new_p.add_run()
+                        run.text = item_text
+                        if source_font:
                             _transfer_font_properties(source_font, run.font)
-                    # --- End Add Items ---
-
+                            
                 else: # Handle empty list or invalid data type
-                    # --- Handle "None" case by adding a new paragraph ---
-                    new_p = tf.add_paragraph()
-                    new_p.level = 0 # Set bullet level first
-                    new_p.text = "None" # Then set text
-                    # Apply stored font properties
-                    if source_font and new_p.runs:
-                        _transfer_font_properties(source_font, new_p.runs[0].font)
-                    elif source_font:
-                         run = new_p.add_run()
-                         _transfer_font_properties(source_font, run.font)
-                    # --- End Handle "None" Case ---
-                # *** FIX END ***
+                    # Set the original paragraph text to "None"
+                    p.clear()
+                    run = p.add_run()
+                    run.text = "None"
+                    if source_font:
+                        _transfer_font_properties(source_font, run.font)
 
                 # --- Text Frame Properties ---
                 tf.auto_size = MSO_AUTO_SIZE.SHAPE_TO_FIT_TEXT
