@@ -885,3 +885,70 @@ Okay, let's lay out a plan to integrate the list placeholder feature cleanly int
 3.  **Code Review & Refinement:** Review the implementation for clarity, efficiency, and adherence to your project's coding standards.
 
 This phased approach introduces the necessary backend capability first, then builds the core frontend UI, refines the review step, and concludes with thorough testing. It starts with the simplest configuration approach (frontend-defined choices) for known lists.
+
+## Feature Code Report: Presentation Download Workflow
+
+**Date:** [Current Date, e.g., 2023-10-27]
+**Feature:** New Presentation Download Workflow (Dedicated Download Tab)
+**Author (Code Reviewer):** [Your Name/AI Assistant]
+
+---
+
+### I. Overview
+
+This report details the implementation and successful resolution of the new presentation download workflow. The primary goal was to improve user experience by decoupling the file generation and download process from the main application tab. Upon clicking "Generate," a new browser tab now opens to manage the download, while the original tab redirects to the dashboard, allowing users to continue interacting with the application without waiting.
+
+### II. Implemented Changes
+
+**1. New Component: `src/pages/DownloadPage.jsx`**
+    * **Purpose:** A dedicated, minimal page to handle the entire file generation and download lifecycle.
+    * **Functionality:**
+        * Reads generation parameters (template ID, form data) from `sessionStorage`.
+        * Initiates the `generatePresentation` API call.
+        * Manages and displays three distinct UI states: "Loading" (with spinner), "Success" (with checkmark and download prompt), and "Error" (with `cat.png` and error message).
+        * Automatically triggers the browser's file download for successful generations.
+        * Provides a fallback "Click here" link for manual download if automatic fails.
+        * Crucially, uses a `useRef` flag (`hasInitialized`) to prevent duplicate API calls and `sessionStorage` removal in React's `StrictMode` (resolving the initial flicker bug).
+    * **Status:** Production Ready.
+
+**2. Router Configuration: `src/main.jsx`**
+    * **Purpose:** To define the new route for the `DownloadPage`.
+    * **Changes:** Added a new top-level route `/downloading` which directly renders `<DownloadPage />`.
+    * **Impact:** This placement ensures the `DownloadPage` renders outside the `MainLayout`, achieving the desired headerless, minimal design.
+    * **Status:** Production Ready.
+
+**3. `ReviewPage` Modification: `src/pages/ReviewPage.jsx`**
+    * **Purpose:** To initiate the new download workflow.
+    * **Changes:**
+        * Modified `handleGenerate` function to:
+            * Store the necessary `templateId` and `formData` into `sessionStorage` under the key `pptxDownloadData`.
+            * Open the new `/downloading` URL in a new browser tab (`window.open`).
+            * Immediately redirect the current tab to the Dashboard (`/`) using `useNavigate`.
+        * Removed previous local state variables and logic related to download progress/errors, as these are now handled by `DownloadPage`.
+        * **Fix:** Integrated `useNavigate` hook and corrected its usage (resolved a `Maps is not defined` error found during review).
+    * **Status:** Production Ready.
+
+### III. Key Issues Addressed During Development/Review
+
+* **Flickering Download Page (Error -> Success):**
+    * **Root Cause:** React's `StrictMode` caused `DownloadPage`'s `useEffect` to run twice. The first run consumed and removed the `sessionStorage` data, leading the second run to find no data, triggering an error state. When the first API call eventually succeeded, it would then update to success, causing a visible flicker from error to success.
+    * **Resolution:** Implemented a `useRef` flag (`hasInitialized`) within `DownloadPage.jsx`'s `useEffect` to ensure the critical `sessionStorage` read/remove and API call logic only executes once per component lifecycle, even under `StrictMode`.
+
+* **`Maps is not defined` Error on `ReviewPage`:**
+    * **Root Cause:** A typo in `ReviewPage.jsx`'s `handleGenerate` function attempting to use an undefined `Maps` variable instead of the `navigate` function from `useNavigate`.
+    * **Resolution:** Correctly imported and initialized `useNavigate` and used the `navigate('/')` function for redirection.
+
+### IV. Testing & Validation
+
+The feature underwent comprehensive end-to-end testing, including:
+* **Happy Path:** Confirmed seamless transition from Review Page to Dashboard, automatic new tab opening, `DownloadPage` loading state, automatic file download, and `DownloadPage` success state.
+* **Fallback Download Link:** Verified the "Click here" link correctly re-triggers download.
+* **Negative Path:** Confirmed correct `DownloadPage` error state display upon backend API failure.
+* **Edge Cases:**
+    * Direct navigation to `/downloading` correctly shows "No generation data found" error.
+    * Concurrent generations in separate tabs function independently without data conflicts.
+    * Browser tab closure during generation handled gracefully.
+
+### V. Conclusion
+
+The new presentation download workflow is successfully implemented and validated. The solution is clean, robust, and significantly enhances the user experience by providing a dedicated and informative download process that doesn't block the main application flow. The identified and resolved issues during development (StrictMode flicker, ReviewPage redirection) have ensured a high-quality, production-ready feature.

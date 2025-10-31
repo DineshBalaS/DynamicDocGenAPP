@@ -9,9 +9,9 @@ import Spinner from "../components/ui/spinner";
 import ErrorState from "../components/common/ErrorState";
 import ImageUploader from "../components/common/ImageUploader";
 import NoPlaceholdersFound from "../components/common/NoPlaceholdersFound";
-import { PREDEFINED_LIST_CHOICES } from '../constants/listChoices';
-import CheckboxGroupWithOther from '../components/common/CheckboxGroupWithOther';
-import MultiTextInput from '../components/common/MultiTextInput';
+import { PREDEFINED_LIST_CHOICES } from "../constants/listChoices";
+import CheckboxGroupWithOther from "../components/common/CheckboxGroupWithOther";
+import MultiTextInput from "../components/common/MultiTextInput";
 
 function DataEntryPage() {
   const { templateId } = useParams();
@@ -60,14 +60,18 @@ function DataEntryPage() {
     // Check if every placeholder in the form has a valid value
     const allFieldsFilled = template.placeholders.every((ph) => {
       const value = formData[ph.name];
-      if (ph.type === 'list') {
+      if (ph.type === "list") {
         // For lists, check if the array is not empty AND
         // if it contains at least one non-empty string after trimming.
         // Handles case like [''] from MultiTextInput initial state.
-        return Array.isArray(value) && value.length > 0 && value.some(item => typeof item === 'string' && item.trim() !== '');
+        return (
+          Array.isArray(value) &&
+          value.length > 0 &&
+          value.some((item) => typeof item === "string" && item.trim() !== "")
+        );
       } else {
         // For text/image, check if it's a non-empty string after trimming.
-        return typeof value === 'string' && value.trim() !== "";
+        return typeof value === "string" && value.trim() !== "";
       }
     });
     setIsFormValid(allFieldsFilled);
@@ -81,7 +85,7 @@ function DataEntryPage() {
 
   // This single handler works for both CheckboxGroupWithOther and MultiTextInput
   const handleListChange = (placeholderName, newValueArray) => {
-    setFormData(prev => ({ ...prev, [placeholderName]: newValueArray }));
+    setFormData((prev) => ({ ...prev, [placeholderName]: newValueArray }));
   };
 
   // handler to accept and store the local preview URL from ImageUploader
@@ -129,56 +133,67 @@ function DataEntryPage() {
   return (
     <div className="max-w-7xl mx-auto">
       {/* ... (existing Back link, h1, p) ... */}
-      <Link /* ... */ >&larr; Back to Dashboard</Link>
-      <h1>{template.name}</h1>
-      <p>Fill in the data below to generate your presentation.</p>
+      <Link
+        to="/"
+        className="text-sm text-teal-600 hover:text-teal-800 font-medium inline-block mb-4"
+      >
+        &larr; Back to Dashboard
+      </Link>
+      <h1 className="text-3xl sm:text-4xl font-extrabold text-teal-700 leading-tight">
+        {template.name}
+      </h1>
+      <p className="mt-2 text-lg text-gray-600 mb-6"> {/* Increased top margin and added bottom margin */}
+        Fill in the data below to generate your presentation.
+      </p>
 
       <div className="mt-8 space-y-6 bg-white p-8 rounded-lg shadow-md border border-gray-200">
         {template.placeholders.map((ph) => (
           <div key={ph.name}>
             <label className="block text-sm font-medium text-gray-700 capitalize mb-2">
               {ph.name.replace(/_/g, " ")}
-              <span className="text-red-500 ml-1">*</span> {/* Assuming all are required */}
+              <span className="text-red-500 ml-1">*</span>{" "}
+              {/* Assuming all are required */}
             </label>
 
             {/* --- Conditional Rendering Logic --- */}
-            {ph.type === "text" ? (
-              <input
-                type="text"
-                name={ph.name}
-                value={formData[ph.name] || ""}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500"
-                placeholder={`Enter value for ${ph.name}...`}
-              />
-            ) : ph.type === "image" ? (
-              <ImageUploader
-                placeholderName={ph.name}
-                onUploadSuccess={handleImageUploadSuccess}
-                // Pass existing preview if available (useful if navigating back)
-                initialPreviewUrl={imagePreviews[ph.name]}
-                initialS3Key={formData[ph.name]}
-              />
-            ) : ph.type === "list" ? (
-               // Check if we have predefined choices for this list placeholder
-               PREDEFINED_LIST_CHOICES[ph.name] ? (
-                 <CheckboxGroupWithOther
+            {
+              ph.type === "text" ? (
+                <input
+                  type="text"
+                  name={ph.name}
+                  value={formData[ph.name] || ""}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500"
+                  placeholder={`Enter value for ${ph.name}...`}
+                />
+              ) : ph.type === "image" ? (
+                <ImageUploader
+                  placeholderName={ph.name}
+                  onUploadSuccess={handleImageUploadSuccess}
+                  // Pass existing preview if available (useful if navigating back)
+                  initialPreviewUrl={imagePreviews[ph.name]}
+                  initialS3Key={formData[ph.name]}
+                />
+              ) : ph.type === "list" ? (
+                // Check if we have predefined choices for this list placeholder
+                PREDEFINED_LIST_CHOICES[ph.name] ? (
+                  <CheckboxGroupWithOther
                     placeholderName={ph.name}
                     choices={PREDEFINED_LIST_CHOICES[ph.name]}
                     value={formData[ph.name]} // Pass the array state
                     onChange={handleListChange} // Use the new handler
-                 />
-               ) : (
-                 // Render MultiTextInput if no predefined choices found
-                 <MultiTextInput
+                  />
+                ) : (
+                  // Render MultiTextInput if no predefined choices found
+                  <MultiTextInput
                     placeholderName={ph.name}
                     value={formData[ph.name]} // Pass the array state
                     onChange={handleListChange} // Use the same new handler
-                 />
-               )
-            ) : null /* Handle potential unknown types in the future */}
+                  />
+                )
+              ) : null /* Handle potential unknown types in the future */
+            }
             {/* --- End Conditional Rendering Logic --- */}
-
           </div>
         ))}
       </div>
