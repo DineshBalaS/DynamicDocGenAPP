@@ -69,11 +69,9 @@ const CheckboxGroupWithOther = ({ placeholderName, choices, value, onChange }) =
 
     if (willBeChecked) {
       // If checking 'Other', add the current otherText (if any)
+      newSelectedValues.add('Other'); // This is the crucial line: always mark 'Other' as selected.
       if (otherText.trim()) {
-        newSelectedValues.add(otherText.trim());
-      } else {
-         // Optionally track the 'Other' checkbox itself even if text is empty
-         // newSelectedValues.add('Other');
+        newSelectedValues.add(otherText.trim()); // Add actual text if present
       }
     } else {
       // If unchecking 'Other', remove the current otherText (which should already be gone, but be safe)
