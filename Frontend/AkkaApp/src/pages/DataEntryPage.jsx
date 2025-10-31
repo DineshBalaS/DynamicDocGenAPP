@@ -12,6 +12,8 @@ import NoPlaceholdersFound from "../components/common/NoPlaceholdersFound";
 import { PREDEFINED_LIST_CHOICES } from "../constants/listChoices";
 import CheckboxGroupWithOther from "../components/common/CheckboxGroupWithOther";
 import MultiTextInput from "../components/common/MultiTextInput";
+import { useNavigationBlocker } from "../hooks/useNavigationBlocker";
+import Modal from "../components/ui/Modal";
 
 function DataEntryPage() {
   const { templateId } = useParams();
@@ -27,6 +29,10 @@ function DataEntryPage() {
   const [formData, setFormData] = useState({});
   const [imagePreviews, setImagePreviews] = useState({});
   const [isFormValid, setIsFormValid] = useState(false);
+
+  // State for navigation blocker
+  const [isDirty, setIsDirty] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch template details on component mount
   const fetchDetails = useCallback(async () => {
@@ -77,34 +83,49 @@ function DataEntryPage() {
     setIsFormValid(allFieldsFilled);
   }, [formData, template]);
 
+  // Setup the navigation blocker
+  // It's active only if the form is dirty AND we aren't submitting.
+  const { showModal, handleConfirmNavigation, handleCancelNavigation } =
+    useNavigationBlocker(isDirty && !isSubmitting);
+
   // Handler for text input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    setIsDirty(true); // Mark form as dirty
   };
 
   // This single handler works for both CheckboxGroupWithOther and MultiTextInput
   const handleListChange = (placeholderName, newValueArray) => {
     setFormData((prev) => ({ ...prev, [placeholderName]: newValueArray }));
+    setIsDirty(true);
   };
 
   // handler to accept and store the local preview URL from ImageUploader
   const handleImageUploadSuccess = (placeholderName, s3_key, previewUrl) => {
     setFormData((prev) => ({ ...prev, [placeholderName]: s3_key }));
     setImagePreviews((prev) => ({ ...prev, [placeholderName]: previewUrl }));
+    setIsDirty(true);
   };
 
   // Handler for the "Generate Presentation" button click
   const handleReview = () => {
-    // Navigate to the review page, passing all necessary data in the route's state
-    navigate(`/review/${templateId}`, {
-      state: {
-        template,
-        formData,
-        imagePreviews,
-      },
-    });
+    // Set submitting to true, which disables the blocker
+    setIsSubmitting(true);
   };
+
+  // This effect runs when 'isSubmitting' becomes true
+  useEffect(() => {
+    if (isSubmitting) {
+      navigate(`/review/${templateId}`, {
+        state: {
+          template,
+          formData,
+          imagePreviews,
+        },
+      });
+    }
+  }, [isSubmitting, navigate, template, formData, imagePreviews]);
 
   // Render loading state
   if (isLoading) {
@@ -132,6 +153,18 @@ function DataEntryPage() {
   // Render the main form
   return (
     <div className="max-w-7xl mx-auto">
+      {/* --- Navigation Blocker Modal --- */}
+      <Modal
+        isOpen={showModal}
+        onClose={handleCancelNavigation}
+        onConfirm={handleConfirmNavigation}
+        title="Unsaved Changes"
+        confirmText="Leave Page"
+        cancelText="Stay"
+        confirmButtonVariant="danger"
+      >
+        You have unsaved changes. If you leave now, all your data will be lost.
+      </Modal>
       {/* ... (existing Back link, h1, p) ... */}
       <Link
         to="/"
@@ -142,7 +175,9 @@ function DataEntryPage() {
       <h1 className="text-3xl sm:text-4xl font-extrabold text-teal-700 leading-tight">
         {template.name}
       </h1>
-      <p className="mt-2 text-lg text-gray-600 mb-6"> {/* Increased top margin and added bottom margin */}
+      <p className="mt-2 text-lg text-gray-600 mb-6">
+        {" "}
+        {/* Increased top margin and added bottom margin */}
         Fill in the data below to generate your presentation.
       </p>
 

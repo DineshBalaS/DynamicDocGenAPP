@@ -1,8 +1,10 @@
 // src/pages/ReviewPage.jsx
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useLocation, Link, Navigate, useNavigate } from "react-router-dom";
 import Spinner from "../components/ui/spinner";
+import { useNavigationBlocker } from "../hooks/useNavigationBlocker";
+import Modal from "../components/ui/Modal";
 
 // Helper function or logic to create this map
 const getPlaceholderTypes = (placeholders) => {
@@ -22,12 +24,19 @@ function ReviewPage() {
   const { template, formData, imagePreviews } = location.state || {};
 
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isNavigatingSafely, setIsNavigatingSafely] = useState(false);
+  const [safeNavigationPath, setSafeNavigationPath] = useState(null);
 
   // If a user navigates here directly without data, redirect them to the dashboard.
   if (!template || !formData) {
     console.log("Redirecting because template or formData is missing!");
     return <Navigate to="/" replace />;
   }
+
+  // Setup the navigation blocker
+  // It's active as long as we haven't clicked a "safe" exit button.
+  const { showModal, handleConfirmNavigation, handleCancelNavigation } =
+    useNavigationBlocker(!isNavigatingSafely);
 
   const handleGenerate = () => {
     setIsGenerating(true); // Disable button immediately
@@ -45,8 +54,9 @@ function ReviewPage() {
       // 3. Open the new download tab
       window.open("/downloading", "_blank");
 
-      // 4. Redirect the current tab to the dashboard
-      navigate("/");
+      // 4. Set state to trigger safe navigation
+      setSafeNavigationPath("/");
+      setIsNavigatingSafely(true);
     } catch (err) {
       // Handle potential errors (e.g., sessionStorage is full)
       console.error("Failed to start generation process:", err);
@@ -55,6 +65,20 @@ function ReviewPage() {
       // Here you could show a local error toast
     }
   };
+
+  const handleBackToForm = () => {
+    // 1. This is also a safe exit. Disable the blocker.
+    setIsNavigatingSafely(true);
+    setSafeNavigationPath(`/generate/${template.id}`);
+  };
+
+  // This effect runs when we trigger a safe navigation
+  useEffect(() => {
+    // Only navigate if the flag is set AND we have a path
+    if (isNavigatingSafely && safeNavigationPath) {
+      navigate(safeNavigationPath);
+    }
+  }, [isNavigatingSafely, safeNavigationPath, navigate]);
 
   const placeholderTypes = template.placeholders.reduce((acc, ph) => {
     acc[ph.name] = ph.type;
@@ -65,6 +89,19 @@ function ReviewPage() {
 
   return (
     <div className="max-w-7xl mx-auto">
+      {/* --- Navigation Blocker Modal --- */}
+      <Modal
+        isOpen={showModal}
+        onClose={handleCancelNavigation}
+        onConfirm={handleConfirmNavigation}
+        title="Not Generated Yet?"
+        confirmText="Leave"
+        cancelText="Stay"
+        confirmButtonVariant="danger"
+      >
+        You haven't generated your presentation. Are you sure you want to leave
+        this page?
+      </Modal>
       <nav className="text-sm mb-4" aria-label="Breadcrumb">
         <ol className="list-none p-0 inline-flex">
           <li className="flex items-center">
@@ -150,12 +187,14 @@ function ReviewPage() {
       </div>
 
       <div className="mt-8 flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-4 space-y-4 space-y-reverse sm:space-y-0">
-        <Link
-          to={`/generate/${template.id}`}
+        <button
+          type="button"
+          onClick={handleBackToForm}
           className="w-full sm:w-auto px-6 py-3 border border-gray-300 rounded-md shadow-sm text-sm font-bold text-gray-700 bg-white hover:bg-gray-50 text-center"
         >
           &larr; Back to Form
-        </Link>
+        </button>
+
         <button
           onClick={handleGenerate}
           disabled={isGenerating}
