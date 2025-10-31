@@ -16,8 +16,24 @@ def _transfer_font_properties(source_font, target_font):
     target_font.bold = source_font.bold
     target_font.italic = source_font.italic
     target_font.underline = source_font.underline
-    if source_font.color.type == MSO_COLOR_TYPE.RGB:
-        target_font.color.rgb = source_font.color.rgb
+    # Handle all common color types, not just RGB.
+    
+    # Get the color object from the source font
+    source_color = source_font.color
+    
+    # Case 1: RGB Color (e.g., "Red" from standard colors)
+    if source_color.type == MSO_COLOR_TYPE.RGB:
+        target_font.color.rgb = source_color.rgb
+        
+    # Case 2: Theme Color (e.g., "White, Background 1" or "Blue, Accent 1")
+    elif source_color.type == MSO_COLOR_TYPE.SCHEME:
+        target_font.color.theme_color = source_color.theme_color
+        # Also copy brightness adjustments (tint/shade)
+        target_font.color.brightness = source_color.brightness
+        
+    # Case 3: Preset Color (less common, but good to handle)
+    elif source_color.type == MSO_COLOR_TYPE.PRESET:
+        target_font.color.preset_color = source_color.preset_color
 
 def extract_placeholders(file_stream: BytesIO) -> list:
     """
@@ -156,7 +172,7 @@ def generate_presentation(template_stream: BytesIO, data: dict, s3_service) -> B
                         # Add a new paragraph element
                         new_p = tf.add_paragraph()
 
-                        # --- START FIX ---
+                       
                         # Get the <a:pPr> (paragraph properties) element from the original paragraph
                         pPr_to_copy = p._element.pPr
 
@@ -175,7 +191,7 @@ def generate_presentation(template_stream: BytesIO, data: dict, s3_service) -> B
                             # Copy all child elements (like <a:buFont>, <a:buChar>, etc.)
                             for child in pPr_to_copy:
                                 new_pPr.append(deepcopy(child))
-                        # --- END FIX ---
+                        
                         
                         # Add the text with the original font style
                         run = new_p.add_run()
@@ -216,7 +232,7 @@ def generate_presentation(template_stream: BytesIO, data: dict, s3_service) -> B
                     current_text = "".join(run.text for run in para.runs)
                     
                     if placeholder_tag in current_text or simple_placeholder_tag in current_text:
-                        # THE FIX: Instead of .duplicate(), we read the font properties
+                        
                         # from the first run and apply them to the new, combined run.
                         source_font = para.runs[0].font if para.runs else None
                         
