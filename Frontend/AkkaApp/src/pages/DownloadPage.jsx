@@ -1,9 +1,9 @@
 // src/pages/DownloadPage.jsx
 
-import React, { useState, useEffect } from 'react';
-import { generatePresentation } from '../api/templateService';
-import Spinner from '../components/ui/spinner';
-import catImage from '../assets/cat.png'; // Make sure this path is correct
+import React, { useState, useEffect, useRef } from "react";
+import { generatePresentation } from "../api/templateService";
+import Spinner from "../components/ui/spinner";
+import catImage from "../assets/cat.png";
 
 // Success Icon (Checkmark)
 function CheckIcon() {
@@ -44,31 +44,38 @@ function ErrorIcon() {
 }
 
 function DownloadPage() {
-  const [status, setStatus] = useState('loading'); // 'loading', 'success', 'error'
+  const [status, setStatus] = useState("loading"); // 'loading', 'success', 'error'
   const [error, setError] = useState(null);
   const [downloadLink, setDownloadLink] = useState(null);
-  const [filename, setFilename] = useState('presentation.pptx');
+  const [filename, setFilename] = useState("presentation.pptx");
+  const hasInitialized = useRef(false);
 
   useEffect(() => {
     // This effect runs once when the page loads
+    if (hasInitialized.current) {
+      console.log(
+        "DownloadPage: useEffect skipped because it was already initialized (StrictMode re-mount)."
+      );
+      return;
+    }
+    hasInitialized.current = true;
     const startGeneration = async () => {
       let dataToGenerate;
       try {
         // 1. Get data from session storage
-        const storedData = sessionStorage.getItem('pptxDownloadData');
+        const storedData = sessionStorage.getItem("pptxDownloadData");
         if (!storedData) {
-          throw new Error('No generation data found. Please try again.');
+          throw new Error("No generation data found. Please try again.");
         }
-        
+
         // 2. Clear the data immediately so it's not used again
-        sessionStorage.removeItem('pptxDownloadData');
-        
+        sessionStorage.removeItem("pptxDownloadData");
+
         dataToGenerate = JSON.parse(storedData);
-        
       } catch (e) {
         console.error("Failed to read from session storage:", e);
-        setError(e.message || 'Failed to initialize generation.');
-        setStatus('error');
+        setError(e.message || "Failed to initialize generation.");
+        setStatus("error");
         return;
       }
 
@@ -78,26 +85,25 @@ function DownloadPage() {
           dataToGenerate.templateId,
           dataToGenerate.formData
         );
-        
+
         const url = window.URL.createObjectURL(blob);
         setDownloadLink(url);
         setFilename(fname);
 
         // 4. Trigger the download automatically
-        const link = document.createElement('a');
+        const link = document.createElement("a");
         link.href = url;
-        link.setAttribute('download', fname);
+        link.setAttribute("download", fname);
         document.body.appendChild(link);
         link.click();
         link.parentNode.removeChild(link);
 
         // 5. Update UI to success
-        setStatus('success');
-
+        setStatus("success");
       } catch (err) {
-        console.error('Generation failed:', err);
-        setError(err.message || 'An unexpected error occurred.');
-        setStatus('error');
+        console.error("Generation failed:", err);
+        setError(err.message || "An unexpected error occurred.");
+        setStatus("error");
       }
     };
 
@@ -107,7 +113,7 @@ function DownloadPage() {
   // Helper function to render content based on state
   const renderContent = () => {
     switch (status) {
-      case 'success':
+      case "success":
         return (
           <>
             <CheckIcon />
@@ -116,7 +122,7 @@ function DownloadPage() {
             </h1>
             <p className="text-gray-500 mt-2">You may now close this tab.</p>
             <div className="text-center mt-6 text-sm text-gray-600">
-              Download didn't start?{' '}
+              Download didn't start?{" "}
               <a
                 href={downloadLink}
                 download={filename}
@@ -128,23 +134,21 @@ function DownloadPage() {
             </div>
           </>
         );
-      case 'error':
+      case "error":
         return (
           <>
             <img src={catImage} alt="Error" className="w-40 h-auto" />
             <h1 className="text-3xl font-bold text-gray-800 mt-4">
               We couldn't generate your presentation.
             </h1>
-            <p className="text-gray-500 mt-2">
-              {error}
-            </p>
+            <p className="text-gray-500 mt-2">{error}</p>
             <p className="text-gray-500 mt-2">
               Please close this tab, return to the main application, and try
               again.
             </p>
           </>
         );
-      case 'loading':
+      case "loading":
       default:
         return (
           <>
