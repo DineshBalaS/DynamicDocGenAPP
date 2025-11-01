@@ -1,7 +1,7 @@
 // src/components/common/ImageUploader.jsx
 
 import React, { useState, useRef, useEffect } from 'react';
-import { uploadAsset } from '../../api/templateService';
+import { uploadAsset, getAssetViewUrl } from '../../api/templateService';
 import ImageSearchModal from './ImageSearchModal';
 
 // Icon components for different states
@@ -19,7 +19,7 @@ const ErrorIcon = () => (
 );
 
 
-function ImageUploader({ onUploadSuccess, placeholderName }) {
+function ImageUploader({ onUploadSuccess, placeholderName, initialS3Key = null }) {
     const [status, setStatus] = useState('idle'); // 'idle', 'uploading', 'success', 'error'
     const [previewUrl, setPreviewUrl] = useState(null);
     const [errorMessage, setErrorMessage] = useState('');
@@ -27,6 +27,29 @@ function ImageUploader({ onUploadSuccess, placeholderName }) {
 
     // state to control the visibility of the search modal
     const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+
+    useEffect(() => {
+        const loadPreview = async (key) => {
+            console.log(`[ImageUploader: ${placeholderName}] Found initialS3Key. Fetching view URL for key:`, key); // DEBUG LOG
+            // Use a temporary 'loading_preview' state
+            setStatus('loading_preview'); 
+            try {
+                // This assumes getAssetViewUrl returns { url: "..." }
+                const data = await getAssetViewUrl(key);
+                setPreviewUrl(data.url);
+                setStatus('success');
+                console.log(`[ImageUploader: ${placeholderName}] Preview URL fetched successfully.`); // DEBUG LOG
+            } catch (err) {
+                console.error(`[ImageUploader: ${placeholderName}] Failed to fetch preview URL:`, err); // DEBUG LOG
+                setErrorMessage("Could not load existing image preview.");
+                setStatus('error');
+            }
+        };
+
+        if (initialS3Key) {
+            loadPreview(initialS3Key);
+        }
+    }, [initialS3Key, placeholderName]);
 
     const handleFileSelect = async (event) => {
         const file = event.target.files[0];
@@ -50,7 +73,8 @@ function ImageUploader({ onUploadSuccess, placeholderName }) {
 
         try {
             const result = await uploadAsset(file);
-            onUploadSuccess(placeholderName, result.s3_key, localPreviewUrl);
+            console.log(`[ImageUploader: ${placeholderName}] File uploaded. Calling onUploadSuccess with s3_key:`, result.s3_key); // DEBUG LOG
+            onUploadSuccess(placeholderName, result.s3_key);
             setStatus('success');
         } catch (error) {
             setErrorMessage(error.message || 'Upload failed. Please try again.');
@@ -63,11 +87,12 @@ function ImageUploader({ onUploadSuccess, placeholderName }) {
 
     // handler for when an image is selected from the search modal
     const handleModalImageSelect = (s3_key, webPreviewUrl) => {
+        console.log(`[ImageUploader: ${placeholderName}] Image selected from modal. s3_key:`, s3_key);
         // The image is already uploaded to S3 by the modal's logic.
         // We just need to update the parent component and this component's UI.
         setStatus('success');
         setPreviewUrl(webPreviewUrl); // Use the web URL for preview
-        onUploadSuccess(placeholderName, s3_key, webPreviewUrl);
+        onUploadSuccess(placeholderName, s3_key);
     };
 
     const handleDirectUploadClick = () => {
@@ -82,16 +107,31 @@ function ImageUploader({ onUploadSuccess, placeholderName }) {
             fileInputRef.current.click();
         }
     };
+
+    const handleReset = () => {
+        console.log(`[ImageUploader: ${placeholderName}] Resetting component.`); // DEBUG LOG
+        // Revoke blob URL if it exists
+        if (previewUrl && previewUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(previewUrl);
+        }
+        // Reset all state
+        setStatus('idle');
+        setPreviewUrl(null);
+        setErrorMessage('');
+        // Tell parent to clear the s3_key
+        onUploadSuccess(placeholderName, ""); 
+    };
     
     // Clean up object URL when component unmounts
     useEffect(() => {
         // Clean up object URLs to prevent memory leaks
         return () => {
             if (previewUrl && previewUrl.startsWith('blob:')) {
+                console.log(`[ImageUploader: ${placeholderName}] Unmounting. Revoking blob URL:`, previewUrl);
                 URL.revokeObjectURL(previewUrl);
             }
         };
-    }, [previewUrl]);
+    }, [previewUrl, placeholderName]);
 
     return (
         <>
@@ -124,8 +164,15 @@ function ImageUploader({ onUploadSuccess, placeholderName }) {
                         </button>
                     </div>
                 )}
-                
-                {status === 'uploading' && <div className="text-center"><LoadingSpinner /><p className="text-xs text-teal-600 mt-2">Uploading...</p></div>}
+
+                {(status === 'uploading' || status === 'loading_preview') && (
+                    <div className="text-center">
+                        <LoadingSpinner />
+                        <p className="text-xs text-teal-600 mt-2">
+                            {status === 'uploading' ? 'Uploading...' : 'Loading preview...'}
+                        </p>
+                    </div>
+                )}
                 {status === 'error' && <div className="text-center"><ErrorIcon /><p className="text-xs text-red-600 mt-1">{errorMessage}</p></div>}
 
                 {status === 'success' && previewUrl && (
@@ -133,7 +180,7 @@ function ImageUploader({ onUploadSuccess, placeholderName }) {
                         <img src={previewUrl} alt="Preview" className="absolute inset-0 w-full h-full object-cover rounded-lg" />
                          <div className="absolute inset-0 bg-black/50 flex justify-center items-center opacity-0 hover:opacity-100 transition-opacity">
                             <button 
-                                onClick={() => setStatus('idle')} 
+                                onClick={handleReset} 
                                 className="text-white font-bold py-2 px-4 rounded bg-black/60 hover:bg-black/80"
                             >
                                 Change Image

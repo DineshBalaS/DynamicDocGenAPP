@@ -1133,3 +1133,94 @@ Final Confirmation:
 Frontend (ReviewPage): The page loads, reads the updated data from sessionStorage, and now displays all the corrected information.
 
 User: The user confirms everything is perfect and clicks "Generate Presentation".
+
+## Code Report: Form Session Memory & In-Place Edit Feature
+Date: November 1, 2025
+
+1. Overview
+This report details the implementation of two major frontend features:
+
+Form Session Memory: A new mechanism to persist user data on the DataEntryPage and ReviewPage. This solves the critical bug where users would lose all their data (including text and image uploads) upon page refresh or navigation.
+
+In-Place Editing: A new feature on the ReviewPage that allows users to edit individual fields one by one (via modals or in-line) without having to return to the full form.
+
+The core of this solution was to stop passing invalid blob: URLs and instead use s3_keys as the single source of truth, with a new backend endpoint to securely fetch viewable URLs.
+
+2. New Architectural Additions
+To support these features in a robust and secure way, several new files were added:
+
+Backend Endpoint (app/api/routes.py)
+
+GET /api/assets/view-url: A new endpoint was added to securely generate an S3 pre-signed URL for a given s3_key.
+
+Security: This endpoint validates that the requested key must start with temp/ to prevent unauthorized access to other files in the S3 bucket.
+
+Frontend API Service (src/api/templateService.js)
+
+getAssetViewUrl(key): A new function was added to call the /api/assets/view-url endpoint, providing a clean way for frontend components to fetch secure URLs.
+
+New Frontend Components & Hooks
+
+src/components/common/S3Image.jsx: A new "smart" component that takes an s3Key as a prop. It handles its own loading, error, and success states by fetching its viewable URL from the backend via getAssetViewUrl.
+
+src/hooks/useReviewPageEditor.js: A new hook that manages the global edit state of the ReviewPage, ensuring only one row can be edited at a time and disabling other UI elements.
+
+src/components/common/EditableReviewRow.jsx: A new "smart row" component for the ReviewPage. It renders the read-only view (using <S3Image />) and conditionally renders the correct edit UI (a text input or a modal) when the "Edit" button is clicked.
+
+3. Modifications to Existing Files
+src/pages/DataEntryPage.jsx
+
+Removed the imagePreviews state. The formData state, which stores s3_keys for images, is now the single source of truth.
+
+fetchDetails was updated to load data from sessionStorage on mount. It validates the templateId in the session against the URL templateId to prevent data from one template leaking into another.
+
+A useEffect hook was added to save formData and template to sessionStorage on every change, ensuring the session is always up-to-date.
+
+handleImageUploadSuccess was simplified to only save the s3_key to formData.
+
+The ImageUploader component prop was updated to pass initialS3Key={formData[ph.name]} instead of the invalid initialPreviewUrl.
+
+src/pages/ReviewPage.jsx
+
+Critical Bug Fix: Corrected a React "Rules of Hooks" violation by moving useNavigationBlocker and the navigation useEffect to the top level of the component, preventing conditional hook calls.
+
+The useEffect data fetch was refactored to load all data from sessionStorage instead of location.state, making the page fully refresh-proof.
+
+The imagePreviews state was removed.
+
+The render logic was replaced with a map that uses the new <EditableReviewRow /> component for each placeholder.
+
+Added the handleUpdateItem function, which is called by EditableReviewRow to update both the component state and sessionStorage.
+
+The "Back to Form" button was renamed to "Edit All".
+
+The "Generate Presentation" button is now correctly disabled via the isEditing flag from the useReviewPageEditor hook.
+
+src/components/common/ImageUploader.jsx
+
+The useEffect hook that runs on mount now correctly uses the initialS3Key prop to call getAssetViewUrl and fetch a secure preview URL.
+
+handleFileSelect and handleModalImageSelect were updated to only call onUploadSuccess with the s3_key, removing the temporary blob: URL.
+
+src/components/templates/TemplateCard.jsx
+
+An onClick handler was added to the "Use Template" <Link>.
+
+This handler calls sessionStorage.removeItem(DATA_ENTRY_SESSION_KEY), ensuring every new session starts with a fresh, empty form.
+
+src/pages/DownloadPage.jsx
+
+This file was modified to also call sessionStorage.removeItem(DATA_ENTRY_SESSION_KEY) when generation begins, clearing the form memory after a successful submission.
+
+src/components/common/MultiTextInput.jsx & CheckboxGroupWithOther.jsx
+
+Minor logic bugs were fixed in the onChange handlers to prevent inputs from disappearing or behaving inconsistently while the user was typing.
+
+4. Key Bugs Resolved
+net::ERR_FILE_NOT_FOUND (Broken Images): FIXED. This was the most critical bug. It was resolved by completely removing the blob: URL logic and using the s3_key as the single source of truth, with previews rendered via the new S3Image component.
+
+Form Data Lost on Refresh/Navigation: FIXED. All form data is now securely persisted in sessionStorage, providing a seamless user experience when navigating or refreshing.
+
+React Crash (Rules of Hooks Violation): FIXED. The white screen crash on the ReviewPage was resolved by moving all hooks to the top level of the component.
+
+UX Bugs: Fixed minor but annoying bugs in list and checkbox components that caused jarring behavior during user input.

@@ -53,16 +53,12 @@ const CheckboxGroupWithOther = ({ placeholderName, choices, value, onChange }) =
 
 
   const handleCheckboxChange = (choice) => {
+    console.log(`[CheckboxGroup ${placeholderName}] handleCheckboxChange fired. Choice: ${choice}`);
     const newSelectedValues = new Set(selectedValues);
     if (newSelectedValues.has(choice)) {
       newSelectedValues.delete(choice);
     } else {
       newSelectedValues.add(choice);
-    }
-    // Ensure 'Other' is removed if a standard choice is being added/removed AND no custom text is present
-    if (newSelectedValues.has(choice) && !otherText.trim()) { // If adding a standard choice and no custom text, maybe "Other" isn't relevant
-         // This logic might need refinement if 'Other' should stay checked regardless of other choices
-         // For now, let's keep it simple based on your current intent.
     }
     onChange(placeholderName, Array.from(newSelectedValues));
   };
@@ -136,8 +132,10 @@ const CheckboxGroupWithOther = ({ placeholderName, choices, value, onChange }) =
       // --- END DEBUG LOG ---
 
       // Add the new text and the 'Other' identifier
-      if (newText) { // Add the raw newText if it's not empty
-        newSelectedValues.add(newText);
+      if (newText.trim()) {
+        newSelectedValues.add(newText.trim()); // Add the new text if it's not just whitespace
+       } else {
+        newSelectedValues.add('Other'); // Add generic 'Other' if text is empty/whitespace
        }
 
       // --- DEBUG LOG: handleOtherTextChange - Final onChange call ---

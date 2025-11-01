@@ -468,3 +468,39 @@ def restore_template(template_id):
         current_app.logger.error(f"Unexpected error restoring template {template_id}: {e}")
         return jsonify({"error": "An unexpected server error occurred."}), 500
     
+@api_bp.route('/assets/view-url', methods=['GET'])
+def get_asset_view_url():
+    """
+    Generates a pre-signed URL for viewing a temporary asset from S3.
+    This is used to securely display image previews on the frontend.
+    """
+    # 1. Get and validate the 'key' query parameter
+    s3_key = request.args.get('key')
+    if not s3_key:
+        current_app.logger.warning("[GET /assets/view-url] Missing 'key' query parameter.")
+        return jsonify({"error": "Missing 'key' query parameter"}), 400
+
+    # 2. **Security Check**: Only allow generation for keys in the 'temp/' directory.
+    #    This prevents users from trying to guess keys for other files (like templates).
+    if not s3_key.startswith('temp/'):
+        current_app.logger.warning(f"[GET /assets/view-url] Access denied for non-temp key: {s3_key}")
+        return jsonify({"error": "Access denied"}), 403 # 403 Forbidden
+
+    try:
+        # 3. Get S3 service and generate the URL
+        s3 = get_s3()
+        
+        # Call the method from s3_service.py
+        url = s3.create_presigned_url_for_download(s3_key) 
+        
+        # 4. Success Response
+        current_app.logger.info(f"[GET /assets/view-url] Generated URL for key: {s3_key}")
+        return jsonify({"url": url}), 200
+
+    except S3Error as e:
+        current_app.logger.error(f"[GET /assets/view-url] S3Error for key {s3_key}: {e}")
+        return jsonify({"error": "Failed to generate viewable URL."}), 500
+    except Exception as e:
+        current_app.logger.error(f"[GET /assets/view-url] Unexpected error for key {s3_key}: {e}")
+        return jsonify({"error": "An unexpected server error occurred."}), 500
+    

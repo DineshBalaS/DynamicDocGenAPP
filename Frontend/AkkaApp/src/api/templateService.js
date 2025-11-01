@@ -210,3 +210,27 @@ export const uploadImageFromUrl = async (imageUrl) => {
         throw new Error(error.response?.data?.error || 'Failed to upload the selected image.');
     }
 };
+
+/**
+ * Fetches a secure, temporary pre-signed URL for a given S3 key.
+ * Used to display previews of images stored in S3.
+ * @param {string} key - The S3 key of the asset (e.g., "temp/abc-123.jpg").
+ * @returns {Promise<Object>} A promise that resolves to an object like { url: "..." }.
+ */
+export const getAssetViewUrl = async (key) => {
+  // DEBUG LOG: Log the key we are trying to fetch
+  console.log(`[getAssetViewUrl] Requesting view URL for key: ${key}`);
+
+  try {
+    const response = await apiClient.get('/api/assets/view-url', {
+      params: { key } // Sends the key as a URL query parameter
+    });
+    return response.data; // Expected: { url: "https://s3.url/..." }
+  } catch (error) {
+    // DEBUG LOG: Log the specific error
+    console.error(`Failed to get asset view URL for key ${key}:`, error.response?.data || error.message);
+    
+    // Throw a user-friendly error for the UI components to catch
+    throw new Error(error.response?.data?.error || 'Could not load image preview.');
+  }
+};

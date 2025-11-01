@@ -1,42 +1,80 @@
 // src/pages/ReviewPage.jsx
 
 import React, { useState, useEffect } from "react";
-import { useLocation, Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import Spinner from "../components/ui/spinner";
 import { useNavigationBlocker } from "../hooks/useNavigationBlocker";
 import Modal from "../components/ui/Modal";
 
-// Helper function or logic to create this map
-const getPlaceholderTypes = (placeholders) => {
-  if (!placeholders) return {};
-  return placeholders.reduce((acc, ph) => {
-    acc[ph.name] = ph.type;
-    return acc;
-  }, {});
-};
+import { useReviewPageEditor } from "../hooks/useReviewPageEditor";
+import EditableReviewRow from "../components/common/EditableReviewRow";
+
+import S3Image from "../components/common/S3Image";
+
+const DATA_ENTRY_SESSION_KEY = "dataEntrySession";
 
 function ReviewPage() {
-  const location = useLocation();
+  console.log("%c[ReviewPage] Render Start", "font-weight:bold; color:blue;"); // DEBUG LOG
+  const { templateId } = useParams();
   const navigate = useNavigate();
-  console.log("ReviewPage location.state:", location.state);
 
   // State is passed from DataEntryPage via the navigate function
-  const { template, formData, imagePreviews } = location.state || {};
+  const [template, setTemplate] = useState(null);
+  console.log("[ReviewPage] Calling hook 3: useState (template)"); // DEBUG LOG
+  const [formData, setFormData] = useState(null);
+  console.log("[ReviewPage] Calling hook 4: useState (formData)"); // DEBUG LOG
+  // const [imagePreviews, setImagePreviews] = useState(null); // REMOVED
+  const [isLoading, setIsLoading] = useState(true);
+  console.log(`[ReviewPage] Calling hook 5: useState (isLoading: ${isLoading})`);
 
   const [isGenerating, setIsGenerating] = useState(false);
+  console.log("[ReviewPage] Calling hook 6: useState (isGenerating)"); // DEBUG LOG
   const [isNavigatingSafely, setIsNavigatingSafely] = useState(false);
+  console.log("[ReviewPage] Calling hook 7: useState (isNavigatingSafely)"); // DEBUG LOG
   const [safeNavigationPath, setSafeNavigationPath] = useState(null);
+  console.log("[ReviewPage] Calling hook 8: useState (safeNavigationPath)");
 
-  // If a user navigates here directly without data, redirect them to the dashboard.
-  if (!template || !formData) {
-    console.log("Redirecting because template or formData is missing!");
-    return <Navigate to="/" replace />;
-  }
+  const { isEditing, editingKey, startEditing, endEditing } =
+    useReviewPageEditor();
+  console.log(
+    `[ReviewPage] Editor Hook: isEditing=${isEditing}, editingKey=${editingKey}`
+  ); // DEBUG LOG
 
-  // Setup the navigation blocker
-  // It's active as long as we haven't clicked a "safe" exit button.
+  console.log("[ReviewPage] Calling hook 11: useNavigationBlocker"); // DEBUG LOG
   const { showModal, handleConfirmNavigation, handleCancelNavigation } =
     useNavigationBlocker(!isNavigatingSafely);
+
+
+  const handleUpdateItem = (key, newValue) => {
+    console.log(
+      `[ReviewPage] handleUpdateItem: key=${key}, newValue=`,
+      newValue
+    ); // DEBUG LOG
+    try {
+      // 1. Update component state
+      const newFormData = { ...formData, [key]: newValue };
+      setFormData(newFormData);
+
+      // 2. Update sessionStorage
+      const storedData = sessionStorage.getItem(DATA_ENTRY_SESSION_KEY);
+      if (storedData) {
+        // We parse, update, and stringify again
+        const sessionData = JSON.parse(storedData);
+        sessionData.formData = newFormData;
+        sessionStorage.setItem(
+          DATA_ENTRY_SESSION_KEY,
+          JSON.stringify(sessionData)
+        );
+        console.log("[ReviewPage] Session storage updated."); // DEBUG LOG
+      }
+
+      // 3. Close the editor
+      endEditing();
+    } catch (err) {
+      console.error("Failed to update item or session storage:", err);
+      // You could show an error toast here
+    }
+  };
 
   const handleGenerate = () => {
     setIsGenerating(true); // Disable button immediately
@@ -66,19 +104,57 @@ function ReviewPage() {
     }
   };
 
+  useEffect(() => {
+    console.log("[ReviewPage] Running hook: useEffect (data fetch)"); // DEBUG LOG
+    try {
+      const storedData = sessionStorage.getItem(DATA_ENTRY_SESSION_KEY);
+      if (!storedData) {
+        throw new Error("No session data found.");
+      }
+
+      const {
+        template: storedTemplate,
+        formData: storedFormData,
+      } = JSON.parse(storedData);
+
+      // Validate that the stored data is for the template we're trying to review
+      if (!storedTemplate || storedTemplate.id.toString() !== templateId) {
+        console.error("Session data mismatch. Navigating home."); // DEBUG LOG
+        throw new Error("Session data mismatch. Please start over.");
+      }
+
+      setTemplate(storedTemplate);
+      setFormData(storedFormData);
+    } catch (err) {
+      console.error("Failed to load review data:", err); // DEBUG LOG
+      // If data is missing or invalid, go to dashboard
+      navigate("/", { replace: true });
+    } finally {
+      setIsLoading(false); // Stop loading
+    }
+  }, [templateId, navigate]);
+
   const handleBackToForm = () => {
     // 1. This is also a safe exit. Disable the blocker.
     setIsNavigatingSafely(true);
     setSafeNavigationPath(`/generate/${template.id}`);
   };
 
-  // This effect runs when we trigger a safe navigation
-  useEffect(() => {
-    // Only navigate if the flag is set AND we have a path
-    if (isNavigatingSafely && safeNavigationPath) {
-      navigate(safeNavigationPath);
-    }
-  }, [isNavigatingSafely, safeNavigationPath, navigate]);
+  // Add loading and data checks
+  if (isLoading) {
+    console.log("[ReviewPage] RETURNING EARLY: isLoading is true."); // DEBUG LOG
+    return (
+      <div className="flex justify-center items-center h-96">
+        <Spinner />
+      </div>
+    );
+  }
+  
+  // Add a safeguard check for after loading
+  if (!template || !formData) {
+    console.log("[ReviewPage] Data is missing after load. Returning null."); // DEBUG LOG
+    return null; // Return null to prevent crash
+  }
 
   const placeholderTypes = template.placeholders.reduce((acc, ph) => {
     acc[ph.name] = ph.type;
@@ -139,49 +215,21 @@ function ReviewPage() {
 
       <div className="mt-8 bg-white p-8 rounded-lg shadow-md border border-gray-200 divide-y divide-gray-200">
         {placeholders.map((key) => {
-          // Determine the type of the current placeholder
           const placeholderType = placeholderTypes[key] || "text";
-          const value = formData[key];
 
           return (
-            <div key={key} className="py-4 sm:grid sm:grid-cols-3 sm:gap-4">
-              <dt className="text-sm font-medium text-gray-600 capitalize">
-                {key.replace(/_/g, " ")}
-              </dt>
-              <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                {/* --- Conditional Rendering based on Type --- */}
-                {placeholderType === "image" && imagePreviews[key] ? (
-                  <img
-                    src={imagePreviews[key]}
-                    alt={`${key} preview`}
-                    className="w-40 h-auto rounded-md border border-gray-300"
-                  />
-                ) : placeholderType === "list" ? (
-                  // Handle list type
-                  Array.isArray(value) &&
-                  value.filter((item) => String(item).trim() !== "").length >
-                    0 ? (
-                    <ul className="list-disc list-inside space-y-1">
-                      {value
-                        .filter((item) => String(item).trim() !== "")
-                        .map((item, index) => (
-                          <li key={index} className="break-words">
-                            {item}
-                          </li>
-                        ))}
-                    </ul>
-                  ) : (
-                    <i className="text-gray-400">None</i> // Display None if list is empty or invalid
-                  )
-                ) : // Handle text type (and fallback for others)
-                value && String(value).trim() !== "" ? (
-                  <span className="break-words">{String(value)}</span>
-                ) : (
-                  <i className="text-gray-400">Not provided</i>
-                )}
-                {/* --- End Conditional Rendering --- */}
-              </dd>
-            </div>
+            <EditableReviewRow
+              key={key}
+              placeholderKey={key} // Pass the key
+              label={key.replace(/_/g, " ")}
+              type={placeholderType}
+              value={formData[key]} // Pass the s3_key, text, or array
+              // imagePreviewUrl={...} // This prop is removed
+              onUpdate={handleUpdateItem}
+              onEditStart={() => startEditing(key)}
+              onEditEnd={endEditing}
+              isDisabled={isEditing && editingKey !== key}
+            />
           );
         })}
       </div>
@@ -192,12 +240,12 @@ function ReviewPage() {
           onClick={handleBackToForm}
           className="w-full sm:w-auto px-6 py-3 border border-gray-300 rounded-md shadow-sm text-sm font-bold text-gray-700 bg-white hover:bg-gray-50 text-center"
         >
-          &larr; Back to Form
+          Edit All
         </button>
 
         <button
           onClick={handleGenerate}
-          disabled={isGenerating}
+          disabled={isGenerating || isEditing}
           className="w-full sm:w-auto bg-teal-600 text-white font-bold py-3 px-6 rounded-md hover:bg-teal-700 disabled:bg-gray-400 transition-colors flex justify-center items-center"
         >
           {isGenerating ? <Spinner /> : "Generate Presentation"}
