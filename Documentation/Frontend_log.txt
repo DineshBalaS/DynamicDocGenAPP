@@ -1026,3 +1026,110 @@ The implementation relies on the custom `useNavigationBlocker` hook, which lever
 ### V. Conclusion
 
 The feature is implemented correctly and is production-ready. The state-first approach (setting a flag, then navigating in an effect) is robust and correctly handles the component lifecycle and router-blocking race conditions.
+
+
+Journey 1: The "In-Place Edit" (Quick Fixes)
+Scenario: The user is on the ReviewPage and notices a typo in the "Client Name" and wants to change the "Company Logo".
+
+Part A: Editing a Text Field
+Start Edit: The user sees "Client Name: Acme Corp" but it should be "Acme Inc.". They click the small "Edit" icon next to that row.
+
+Enter Edit Mode:
+
+Frontend: The read-only text "Acme Corp" instantly transforms into an active text input field, pre-filled with "Acme Corp".
+
+Simultaneously, two new buttons, "Update" and "Cancel", appear in that row.
+
+The main "Generate Presentation" button at the bottom of the page becomes disabled (grayed out) to prevent generation during an edit.
+
+Make Change: The user types "Acme Inc." into the input field.
+
+Confirm Change: The user clicks the "Update" button.
+
+Save State:
+
+Frontend: The "Update" and "Cancel" buttons disappear. The input field reverts to read-only text, now displaying "Acme Inc."
+
+The page's internal data (formData state) is updated with the new value.
+
+This new data is saved to sessionStorage to keep the "memory" feature in sync.
+
+The "Generate Presentation" button becomes enabled again.
+
+Backend: No backend call is made. This is a 100% client-side operation.
+
+Part B: Editing an Image Field
+Start Edit: The user clicks the "Edit" icon next to the "Company Logo" image preview.
+
+Enter Edit Mode:
+
+
+Frontend: An image upload modal immediately opens, showing the ImageUploader component (with its "Upload" and "Search" options).
+
+The "Generate Presentation" button is disabled.
+
+Make Change: The user searches for a new logo, selects it, and clicks "Confirm and Upload" in the modal.
+
+Save State:
+
+
+Backend: The frontend sends the new image to the POST /api/assets/upload endpoint, which saves it to S3 and returns a new s3_key.
+
+
+Frontend:
+
+The modal closes.
+
+The ReviewPage receives the new s3_key and updates its formData state.
+
+This new data is saved to sessionStorage.
+
+The image preview on the ReviewPage refreshes to show the new logo.
+
+The "Generate Presentation" button is re-enabled.
+
+Part C: Canceling an Edit
+Start Edit: The user clicks the "Edit" icon next to "Client Name."
+
+Make Change... or Not: The user types "asdf..." and then realizes they made a mistake.
+
+Cancel: The user clicks the "Cancel" button (or presses the Esc key).
+
+Revert State:
+
+Frontend: The "Update" and "Cancel" buttons disappear. The input field reverts to its original read-only text, "Acme Corp".
+
+The component's state is not changed.
+
+The "Generate Presentation" button is re-enabled.
+
+Journey 2: The "Edit All" (Major Changes)
+Scenario: The user is on the ReviewPage and realizes they need to change three text fields and add two more list items. The "In-Place Edit" would be too slow.
+
+Start Edit: The user clicks the "Edit All" button (this button has replaced the "← Back to Form" button).
+
+Navigate Back:
+
+Frontend: The app navigates the user back to the DataEntryPage for this template (e.g., /generate/123).
+
+This is a "safe" navigation, so the navigation blocker is not triggered.
+
+Reload Form with Data:
+
+Frontend (DataEntryPage): The page loads. Its useEffect hook runs and finds the existing data in sessionStorage.
+
+The entire form is repopulated with all the data the user had previously entered (text, lists, and image previews are all restored).
+
+Make Changes: The user is now on the familiar full-page form. They edit the three text fields and add their two new items to the list component.
+
+Return to Review: The user clicks the "Review and Generate" button.
+
+Save and Navigate:
+
+Frontend (DataEntryPage): The component saves all the new data to sessionStorage and navigates the user back to the ReviewPage.
+
+Final Confirmation:
+
+Frontend (ReviewPage): The page loads, reads the updated data from sessionStorage, and now displays all the corrected information.
+
+User: The user confirms everything is perfect and clicks "Generate Presentation".
