@@ -25,7 +25,9 @@ function ReviewPage() {
   console.log("[ReviewPage] Calling hook 4: useState (formData)"); // DEBUG LOG
   // const [imagePreviews, setImagePreviews] = useState(null); // REMOVED
   const [isLoading, setIsLoading] = useState(true);
-  console.log(`[ReviewPage] Calling hook 5: useState (isLoading: ${isLoading})`);
+  console.log(
+    `[ReviewPage] Calling hook 5: useState (isLoading: ${isLoading})`
+  );
 
   const [isGenerating, setIsGenerating] = useState(false);
   console.log("[ReviewPage] Calling hook 6: useState (isGenerating)"); // DEBUG LOG
@@ -44,6 +46,14 @@ function ReviewPage() {
   const { showModal, handleConfirmNavigation, handleCancelNavigation } =
     useNavigationBlocker(!isNavigatingSafely);
 
+  // This hook listens for a "safe navigation" flag to be set
+  // by either handleGenerate or handleBackToForm.
+  useEffect(() => {
+    if (isNavigatingSafely && safeNavigationPath) {
+      // Once the flag is set (disarming the blocker), perform the navigation.
+      navigate(safeNavigationPath);
+    }
+  }, [isNavigatingSafely, safeNavigationPath, navigate]);
 
   const handleUpdateItem = (key, newValue) => {
     console.log(
@@ -112,10 +122,8 @@ function ReviewPage() {
         throw new Error("No session data found.");
       }
 
-      const {
-        template: storedTemplate,
-        formData: storedFormData,
-      } = JSON.parse(storedData);
+      const { template: storedTemplate, formData: storedFormData } =
+        JSON.parse(storedData);
 
       // Validate that the stored data is for the template we're trying to review
       if (!storedTemplate || storedTemplate.id.toString() !== templateId) {
@@ -149,7 +157,7 @@ function ReviewPage() {
       </div>
     );
   }
-  
+
   // Add a safeguard check for after loading
   if (!template || !formData) {
     console.log("[ReviewPage] Data is missing after load. Returning null."); // DEBUG LOG
