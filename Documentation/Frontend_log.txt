@@ -952,3 +952,77 @@ The feature underwent comprehensive end-to-end testing, including:
 ### V. Conclusion
 
 The new presentation download workflow is successfully implemented and validated. The solution is clean, robust, and significantly enhances the user experience by providing a dedicated and informative download process that doesn't block the main application flow. The identified and resolved issues during development (StrictMode flicker, ReviewPage redirection) have ensured a high-quality, production-ready feature.
+
+## Code Report: Navigation Blocker & Unsaved Changes
+
+**Date:** [23-10-25]
+**Feature:** Warn user before accidental navigation on data-entry and review pages.
+**Author (Code Reviewer):** Gemini
+
+---
+
+### I. Overview
+
+This report details the implementation of a navigation-blocking feature to prevent users from accidentally losing their work. The feature is active on two key pages: `DataEntryPage` (to protect unsaved form data) and `ReviewPage` (to protect an un-generated presentation session).
+
+The implementation relies on the custom `useNavigationBlocker` hook, which leverages `react-router-dom`'s `useBlocker`, and the existing `Modal` component.
+
+---
+
+### II. Implementation Details
+
+#### 1. File: `src/pages/DataEntryPage.jsx`
+
+* **Goal:** Block navigation only if the user has entered or uploaded data (the form is "dirty") and is not intentionally submitting.
+
+* **State Changes:**
+    * Added `isDirty (boolean)` state.
+    * Added `isSubmitting (boolean)` state to manage the "safe exit."
+
+* **Logic:**
+    * The `isDirty` state is set to `true` in all data-handling functions: `handleInputChange`, `handleListChange`, and `handleImageUploadSuccess`.
+    * The blocker is activated with `useNavigationBlocker(isDirty && !isSubmitting)`. This declaratively handles the core logic.
+    * The "safe exit" (`handleReview` button) was refactored:
+        * `onClick` now only sets `setIsSubmitting(true)`.
+        * A `useEffect` hook, dependent on `[isSubmitting]`, now handles the programmatic navigation to the review page. This resolves any race conditions.
+
+* **UI:**
+    * The `<Modal>` component was added and is displayed when the hook's `showModal` is `true`.
+    * It's wired to `handleCancelNavigation` and `handleConfirmNavigation` from the hook.
+
+#### 2. File: `src/pages/ReviewPage.jsx`
+
+* **Goal:** Block navigation if the user tries to leave the page *before* generating the presentation or going back to the form.
+
+* **State Changes:**
+    * Added `isNavigatingSafely (boolean)` state, default `false`.
+    * Added `safeNavigationPath (string | null)` state to store the destination of a safe exit.
+
+* **Logic:**
+    * The blocker is activated with `useNavigationBlocker(!isNavigatingSafely)`.
+    * The "safe exits" (`handleGenerate` and `handleBackToForm`) were refactored to *only* set state:
+        * `handleGenerate` sets `isNavigatingSafely(true)` and `setSafeNavigationPath("/")`.
+        * `handleBackToForm` sets `isNavigatingSafely(true)` and `setSafeNavigationPath("/generate/...")`.
+    * The "Back to Form" `<Link>` was converted to a `<button>` to use the `onClick` handler.
+    * A `useEffect` hook, dependent on `[isNavigatingSafely, safeNavigationPath]`, performs the safe navigation *after* the state has updated and the blocker is disarmed.
+
+* **UI:**
+    * The `<Modal>` component was added with custom text ("Not Generated Yet?") and wired to the blocker hook's props.
+
+---
+
+### III. Bugs Resolved
+
+1.  **`ReviewPage` Race Condition:** Fixed a critical bug where `Maps()` was called in the same handler as `setIsNavigatingSafely(true)`. This caused the blocker to fire before the state update was processed. Resolved by moving navigation logic into a `useEffect` hook triggered by the state change.
+2.  **`ReviewPage` Crash:** Fixed a `ReferenceError: useEffect is not defined` by adding the missing `useEffect` import from `react`.
+
+### IV. Referenced Files (No Changes)
+
+* `src/hooks/useNavigationBlocker.js`: Provided the core blocking mechanism.
+* `src/components/ui/Modal.jsx`: Provided the UI for the warning.
+* `src/main.jsx`: Router (no changes needed).
+* `src/App.jsx`: (Not in use by `main.jsx` router, no changes).
+
+### V. Conclusion
+
+The feature is implemented correctly and is production-ready. The state-first approach (setting a flag, then navigating in an effect) is robust and correctly handles the component lifecycle and router-blocking race conditions.
