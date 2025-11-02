@@ -198,9 +198,6 @@ def delete_template(template_id):
                 "UPDATE templates SET deleted_at = CURRENT_TIMESTAMP, s3_key = %s WHERE id = %s",
                 (new_s3_key_in_trash, template_id)
             )
-
-            # Step 4: update the timestamp in the database
-            cur.execute("UPDATE templates SET deleted_at = CURRENT_TIMESTAMP WHERE id = %s", (template_id,))
             
             # Step 5: Commit Transaction
             db.commit()
