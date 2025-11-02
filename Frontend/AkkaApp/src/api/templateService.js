@@ -219,7 +219,6 @@ export const uploadImageFromUrl = async (imageUrl) => {
  */
 export const getAssetViewUrl = async (key) => {
   // DEBUG LOG: Log the key we are trying to fetch
-  console.log(`[getAssetViewUrl] Requesting view URL for key: ${key}`);
 
   try {
     const response = await apiClient.get('/api/assets/view-url', {

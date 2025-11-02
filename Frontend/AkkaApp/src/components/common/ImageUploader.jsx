@@ -30,7 +30,6 @@ function ImageUploader({ onUploadSuccess, placeholderName, initialS3Key = null }
 
     useEffect(() => {
         const loadPreview = async (key) => {
-            console.log(`[ImageUploader: ${placeholderName}] Found initialS3Key. Fetching view URL for key:`, key); // DEBUG LOG
             // Use a temporary 'loading_preview' state
             setStatus('loading_preview'); 
             try {
@@ -38,7 +37,6 @@ function ImageUploader({ onUploadSuccess, placeholderName, initialS3Key = null }
                 const data = await getAssetViewUrl(key);
                 setPreviewUrl(data.url);
                 setStatus('success');
-                console.log(`[ImageUploader: ${placeholderName}] Preview URL fetched successfully.`); // DEBUG LOG
             } catch (err) {
                 console.error(`[ImageUploader: ${placeholderName}] Failed to fetch preview URL:`, err); // DEBUG LOG
                 setErrorMessage("Could not load existing image preview.");
@@ -73,7 +71,6 @@ function ImageUploader({ onUploadSuccess, placeholderName, initialS3Key = null }
 
         try {
             const result = await uploadAsset(file);
-            console.log(`[ImageUploader: ${placeholderName}] File uploaded. Calling onUploadSuccess with s3_key:`, result.s3_key); // DEBUG LOG
             onUploadSuccess(placeholderName, result.s3_key);
             setStatus('success');
         } catch (error) {
@@ -87,7 +84,6 @@ function ImageUploader({ onUploadSuccess, placeholderName, initialS3Key = null }
 
     // handler for when an image is selected from the search modal
     const handleModalImageSelect = (s3_key, webPreviewUrl) => {
-        console.log(`[ImageUploader: ${placeholderName}] Image selected from modal. s3_key:`, s3_key);
         // The image is already uploaded to S3 by the modal's logic.
         // We just need to update the parent component and this component's UI.
         setStatus('success');
@@ -109,7 +105,6 @@ function ImageUploader({ onUploadSuccess, placeholderName, initialS3Key = null }
     };
 
     const handleReset = () => {
-        console.log(`[ImageUploader: ${placeholderName}] Resetting component.`); // DEBUG LOG
         // Revoke blob URL if it exists
         if (previewUrl && previewUrl.startsWith('blob:')) {
             URL.revokeObjectURL(previewUrl);
@@ -127,7 +122,6 @@ function ImageUploader({ onUploadSuccess, placeholderName, initialS3Key = null }
         // Clean up object URLs to prevent memory leaks
         return () => {
             if (previewUrl && previewUrl.startsWith('blob:')) {
-                console.log(`[ImageUploader: ${placeholderName}] Unmounting. Revoking blob URL:`, previewUrl);
                 URL.revokeObjectURL(previewUrl);
             }
         };

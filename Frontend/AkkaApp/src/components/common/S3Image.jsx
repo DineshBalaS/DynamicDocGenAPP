@@ -57,26 +57,22 @@ function S3Image({ s3Key, alt, className }) {
   useEffect(() => {
     const fetchUrl = async () => {
       if (!s3Key) {
-        console.log(`[S3Image] No s3Key provided. Setting status to idle.`); // DEBUG LOG
         setStatus("idle");
         return;
       }
 
       // Check if the key is already a full URL (from image search)
       if (s3Key.startsWith("http")) {
-        console.log(`[S3Image] s3Key is a full URL. Using it directly.`); // DEBUG LOG
         setImageUrl(s3Key);
         setStatus("success");
         return;
       }
 
-      console.log(`[S3Image] Fetching view URL for s3Key: ${s3Key}`); // DEBUG LOG
       setStatus("loading");
       try {
         const data = await getAssetViewUrl(s3Key);
         setImageUrl(data.url);
         setStatus("success");
-        console.log(`[S3Image] Successfully fetched URL for s3Key: ${s3Key}`); // DEBUG LOG
       } catch (error) {
         console.error(`[S3Image] Failed to fetch URL for s3Key: ${s3Key}`, error); // DEBUG LOG
         setStatus("error");

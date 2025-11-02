@@ -5,7 +5,6 @@ import { useState, useCallback } from "react";
  * This ensures only one row can be edited at a time.
  */
 export const useReviewPageEditor = () => {
-  console.log("[useReviewPageEditor] Hook initialized"); // DEBUG LOG
 
   // 'editingKey' stores the `key` (placeholder name) of the row currently being edited.
   // It's `null` if no row is in edit mode.

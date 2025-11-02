@@ -14,35 +14,23 @@ import S3Image from "../components/common/S3Image";
 const DATA_ENTRY_SESSION_KEY = "dataEntrySession";
 
 function ReviewPage() {
-  console.log("%c[ReviewPage] Render Start", "font-weight:bold; color:blue;"); // DEBUG LOG
   const { templateId } = useParams();
   const navigate = useNavigate();
 
   // State is passed from DataEntryPage via the navigate function
   const [template, setTemplate] = useState(null);
-  console.log("[ReviewPage] Calling hook 3: useState (template)"); // DEBUG LOG
   const [formData, setFormData] = useState(null);
-  console.log("[ReviewPage] Calling hook 4: useState (formData)"); // DEBUG LOG
   // const [imagePreviews, setImagePreviews] = useState(null); // REMOVED
   const [isLoading, setIsLoading] = useState(true);
-  console.log(
-    `[ReviewPage] Calling hook 5: useState (isLoading: ${isLoading})`
-  );
 
   const [isGenerating, setIsGenerating] = useState(false);
-  console.log("[ReviewPage] Calling hook 6: useState (isGenerating)"); // DEBUG LOG
   const [isNavigatingSafely, setIsNavigatingSafely] = useState(false);
-  console.log("[ReviewPage] Calling hook 7: useState (isNavigatingSafely)"); // DEBUG LOG
   const [safeNavigationPath, setSafeNavigationPath] = useState(null);
-  console.log("[ReviewPage] Calling hook 8: useState (safeNavigationPath)");
 
   const { isEditing, editingKey, startEditing, endEditing } =
     useReviewPageEditor();
-  console.log(
-    `[ReviewPage] Editor Hook: isEditing=${isEditing}, editingKey=${editingKey}`
-  ); // DEBUG LOG
+  
 
-  console.log("[ReviewPage] Calling hook 11: useNavigationBlocker"); // DEBUG LOG
   const { showModal, handleConfirmNavigation, handleCancelNavigation } =
     useNavigationBlocker(!isNavigatingSafely);
 
@@ -56,10 +44,6 @@ function ReviewPage() {
   }, [isNavigatingSafely, safeNavigationPath, navigate]);
 
   const handleUpdateItem = (key, newValue) => {
-    console.log(
-      `[ReviewPage] handleUpdateItem: key=${key}, newValue=`,
-      newValue
-    ); // DEBUG LOG
     try {
       // 1. Update component state
       const newFormData = { ...formData, [key]: newValue };
@@ -75,7 +59,6 @@ function ReviewPage() {
           DATA_ENTRY_SESSION_KEY,
           JSON.stringify(sessionData)
         );
-        console.log("[ReviewPage] Session storage updated."); // DEBUG LOG
       }
 
       // 3. Close the editor
@@ -115,7 +98,6 @@ function ReviewPage() {
   };
 
   useEffect(() => {
-    console.log("[ReviewPage] Running hook: useEffect (data fetch)"); // DEBUG LOG
     try {
       const storedData = sessionStorage.getItem(DATA_ENTRY_SESSION_KEY);
       if (!storedData) {
@@ -150,7 +132,6 @@ function ReviewPage() {
 
   // Add loading and data checks
   if (isLoading) {
-    console.log("[ReviewPage] RETURNING EARLY: isLoading is true."); // DEBUG LOG
     return (
       <div className="flex justify-center items-center h-96">
         <Spinner />
@@ -160,16 +141,10 @@ function ReviewPage() {
 
   // Add a safeguard check for after loading
   if (!template || !formData) {
-    console.log("[ReviewPage] Data is missing after load. Returning null."); // DEBUG LOG
     return null; // Return null to prevent crash
   }
 
-  const placeholderTypes = template.placeholders.reduce((acc, ph) => {
-    acc[ph.name] = ph.type;
-    return acc;
-  }, {});
-
-  const placeholders = Object.keys(formData);
+  const placeholders = template.placeholders || [];
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -222,21 +197,20 @@ function ReviewPage() {
       </p>
 
       <div className="mt-8 bg-white p-8 rounded-lg shadow-md border border-gray-200 divide-y divide-gray-200">
-        {placeholders.map((key) => {
-          const placeholderType = placeholderTypes[key] || "text";
-
+        
+        {placeholders.map((placeholder) => {
           return (
             <EditableReviewRow
-              key={key}
-              placeholderKey={key} // Pass the key
-              label={key.replace(/_/g, " ")}
-              type={placeholderType}
-              value={formData[key]} // Pass the s3_key, text, or array
+              key={placeholder.name}
+              placeholderKey={placeholder.name} // Pass the key
+              label={placeholder.name.replace(/_/g, " ")}
+              type={placeholder.type}
+              value={formData[placeholder.name]}
               // imagePreviewUrl={...} // This prop is removed
               onUpdate={handleUpdateItem}
-              onEditStart={() => startEditing(key)}
+              onEditStart={() => startEditing(placeholder.name)}
               onEditEnd={endEditing}
-              isDisabled={isEditing && editingKey !== key}
+              isDisabled={isEditing && editingKey !== placeholder.name}
             />
           );
         })}

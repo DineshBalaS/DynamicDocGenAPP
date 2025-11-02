@@ -5,14 +5,12 @@ import React from 'react'; // <-- Import React
 // --- Helper Component for Multi-Text Input ---
 const MultiTextInput = ({ placeholderName, value, onChange }) => {
   // Ensure value is always an array, default to [''] if null/undefined/empty
-  console.log(`%c[MultiTextInput: ${placeholderName}] Render - value prop:`, 'color: #009688', value);
   const items = (Array.isArray(value) && value.length > 0) ? value : [''];
 
   const handleItemChange = (index, text) => {
     const newItems = [...items];
     newItems[index] = text;
     // Report the array exactly as it is, including empty strings.
-    console.log(`[MultiTextInput: ${placeholderName}] addItem - Calling onChange with:`, newItems);
     onChange(placeholderName, newItems);
   };
 
@@ -26,7 +24,6 @@ const MultiTextInput = ({ placeholderName, value, onChange }) => {
   const removeItem = (index) => {
     const newItems = items.filter((_, i) => i !== index);
     const finalItems = newItems.length > 0 ? newItems : [''];
-    console.log(`[MultiTextInput: ${placeholderName}] removeItem - index: ${index}. Calling onChange with:`, finalItems); // DEBUG LOG
      onChange(placeholderName, finalItems);
   };
 

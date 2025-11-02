@@ -86,10 +86,6 @@ function EditableReviewRow({
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Debug log for component render
-  console.log(
-    `%c[EditableReviewRow: ${label}] Render - isEditing: ${isEditing}, isDisabled: ${isDisabled}, type: ${type}`,
-    "color: purple"
-  );
 
   // Sync local state if the main prop value changes from outside
   useEffect(() => {
@@ -99,7 +95,6 @@ function EditableReviewRow({
   }, [value, isEditing]);
 
   const handleEditClick = () => {
-    console.log(`[EditableReviewRow: ${label}] Edit Clicked. isDisabled: ${isDisabled}`);
     if (isDisabled) return;
 
     onEditStart(); // Tell parent (ReviewPage) we are starting
@@ -112,14 +107,12 @@ function EditableReviewRow({
   };
 
   const handleCancelClick = () => {
-    console.log(`[EditableReviewRow: ${label}] Cancel Clicked`);
     setIsEditing(false);
     setCurrentValue(value); // Revert local state to original prop value
     onEditEnd(); // Tell parent we are done
   };
 
   const handleUpdateClick = () => {
-    console.log(`[EditableReviewRow: ${label}] Update Clicked. New value:`, currentValue);
     onUpdate(placeholderKey, currentValue); // Send new value to parent
     setIsEditing(false);
     onEditEnd(); // Tell parent we are done
@@ -127,7 +120,6 @@ function EditableReviewRow({
 
   // --- Modal-specific Handlers ---
   const handleModalSave = () => {
-    console.log(`[EditableReviewRow: ${label}] Modal Save. New value:`, currentValue);
     setIsModalOpen(false);
     onUpdate(placeholderKey, currentValue); // Save the value from the modal
     setIsEditing(false);
@@ -135,7 +127,6 @@ function EditableReviewRow({
   };
 
   const handleModalCancel = () => {
-    console.log(`[EditableReviewRow: ${label}] Modal Cancel.`);
     setIsModalOpen(false);
     setCurrentValue(value); // Discard changes made in the modal
     setIsEditing(false);
@@ -144,7 +135,6 @@ function EditableReviewRow({
 
   // Handler for ImageUploader success (called from within the modal)
   const handleImageUploadSuccess = (pKey, s3_key) => {
-    console.log(`[EditableReviewRow: ${label}] Image Upload Success. s3_key:`, s3_key);
     // We only care about the s3_key, which is our new value
     setCurrentValue(s3_key);
     // We don't save/close here, we wait for the user to hit "Save" on the modal
@@ -152,7 +142,6 @@ function EditableReviewRow({
 
   // Handler for List component changes (called from within the modal)
   const handleListChange = (pKey, newValueArray) => {
-    console.log(`[EditableReviewRow: ${label}] List Change. newValue:`, newValueArray);
     setCurrentValue(newValueArray);
   };
 
@@ -281,9 +270,7 @@ function EditableReviewRow({
 
   return (
     <div className="py-4 sm:grid sm:grid-cols-3 sm:gap-4">
-      <dt className="text-sm font-medium text-gray-600 capitalize">
-        {label}
-      </dt>
+      <dt className="text-sm font-medium text-gray-600 capitalize">{label}</dt>
 
       {isEditing && type === "text"
         ? renderTextEditView()
