@@ -1,8 +1,10 @@
 import re
 from io import BytesIO
+from copy import deepcopy
 from pptx import Presentation
 from pptx.enum.text import MSO_AUTO_SIZE
 from pptx.enum.dml import MSO_COLOR_TYPE
+from pptx.util import Inches
 
 def _transfer_font_properties(source_font, target_font):
     """
@@ -14,8 +16,24 @@ def _transfer_font_properties(source_font, target_font):
     target_font.bold = source_font.bold
     target_font.italic = source_font.italic
     target_font.underline = source_font.underline
-    if source_font.color.type == MSO_COLOR_TYPE.RGB:
-        target_font.color.rgb = source_font.color.rgb
+    # Handle all common color types, not just RGB.
+    
+    # Get the color object from the source font
+    source_color = source_font.color
+    
+    # Case 1: RGB Color (e.g., "Red" from standard colors)
+    if source_color.type == MSO_COLOR_TYPE.RGB:
+        target_font.color.rgb = source_color.rgb
+        
+    # Case 2: Theme Color (e.g., "White, Background 1" or "Blue, Accent 1")
+    elif source_color.type == MSO_COLOR_TYPE.SCHEME:
+        target_font.color.theme_color = source_color.theme_color
+        # Also copy brightness adjustments (tint/shade)
+        target_font.color.brightness = source_color.brightness
+        
+    # Case 3: Preset Color (less common, but good to handle)
+    elif source_color.type == MSO_COLOR_TYPE.PRESET:
+        target_font.color.preset_color = source_color.preset_color
 
 def extract_placeholders(file_stream: BytesIO) -> list:
     """
@@ -71,12 +89,21 @@ def generate_presentation(template_stream: BytesIO, data: dict, s3_service) -> B
     This function uses the base python-pptx library for all manipulations.
     """
     ppt = Presentation(template_stream)
+    # Regex to find list placeholders specifically
+    list_pattern = re.compile(r'\{\{list:(\w+)\}\}')
+    # Regex to find image placeholders specifically
+    image_pattern = re.compile(r'\{\{image:(\w+)\}\}')
+    # Regex for simple text placeholders (including explicitly typed text ones)
+    text_pattern = re.compile(r'\{\{(?:text:)?(\w+)\}\}')
 
     for slide in ppt.slides:
         shapes_to_delete = []
         for shape in list(slide.shapes): # Use list() to allow safe deletion
             if not shape.has_text_frame:
                 continue
+            
+            # --- Check shape text content ONCE ---
+            shape_text = shape.text_frame.text
 
             # --- Image Replacement Logic ---
             if '{{image:' in shape.text_frame.text:
@@ -101,34 +128,93 @@ def generate_presentation(template_stream: BytesIO, data: dict, s3_service) -> B
                     continue # Skip other replacements for this shape
 
             # --- List Replacement Logic ---
-            if '{{list:' in shape.text_frame.text:
-                match = re.search(r'\{\{list:(\w+)\}\}', shape.text_frame.text)
-                if match:
-                    ph_name = match.group(1)
-                    items = data.get(ph_name, [])
-                    
-                    tf = shape.text_frame
-                    tf.clear() # Clear existing placeholder text
+            found_list_in_shape = False
+            target_para_idx = -1
+            source_font = None
+            list_ph_name = None
+            target_para_obj = None # Store the paragraph object itself
 
-                    if items and isinstance(items, list):
-                        # Set the first item in the first paragraph
-                        p = tf.paragraphs[0] if tf.paragraphs else tf.add_paragraph()
-                        p.text = str(items[0])
-                        p.level = 0
-                        
-                        # Add subsequent items as new paragraphs
-                        for item in items[1:]:
-                            p = tf.add_paragraph()
-                            p.text = str(item)
-                            p.level = 0
-                        
-                        # Disable auto-fitting for the shape to prevent text shrinking
-                        tf.auto_size = MSO_AUTO_SIZE.NONE
+            # Find the paragraph containing the list placeholder first
+            for para_idx, para in enumerate(shape.text_frame.paragraphs):
+                list_match = list_pattern.search(para.text)
+                if list_match:
+                    if para.runs:
+                        source_font = para.runs[0].font # Store font from the first run
                     else:
-                        # Handle case where data is missing or not a list
-                        p = tf.add_paragraph()
-                        p.text = f"[List data for '{ph_name}' is invalid or missing]"
-                    continue
+                        source_font = None
+                    target_para_idx = para_idx
+                    target_para_obj = para # Keep the paragraph object
+                    list_ph_name = list_match.group(1)
+                    break # Found the paragraph, stop searching
+
+            # Process the list if a placeholder paragraph was found
+            if target_para_idx != -1 and list_ph_name is not None and target_para_obj is not None:
+                items = data.get(list_ph_name, []) # Expect data[list_ph_name] to be a list
+                tf = shape.text_frame # Get the text frame
+                
+                # We will re-use the original placeholder paragraph for the first item.
+                # This preserves all paragraph formatting (bullets, indentation, etc.).
+                p = target_para_obj 
+                
+                if items and isinstance(items, list) and any(str(item).strip() for item in items):
+                    # Filter out any empty strings
+                    valid_items = [str(item) for item in items if str(item).strip()]
+                    
+                    # 1. Set the text for the first item (in the existing paragraph)
+                    p.clear() # Clear existing runs (like '{{list:name}}')
+                    run = p.add_run()
+                    run.text = valid_items[0]
+                    if source_font:
+                        _transfer_font_properties(source_font, run.font)
+                    
+                    # 2. Add subsequent items as new paragraphs
+                    for item_text in valid_items[1:]:
+                        # Add a new paragraph element
+                        new_p = tf.add_paragraph()
+
+                       
+                        # Get the <a:pPr> (paragraph properties) element from the original paragraph
+                        pPr_to_copy = p._element.pPr
+
+                        # Only proceed if the original paragraph *has* properties to copy
+                        if pPr_to_copy is not None:
+                            # Get the <a:pPr> element of the new paragraph,
+                            # CREATING IT if it doesn't exist. This is the fix.
+                            new_pPr = new_p._element.get_or_add_pPr()
+                            
+                            # Clear any default properties that might be on the new pPr
+                            new_pPr.clear()
+                            
+                            # Copy all XML attributes (like 'lvl', 'marL', etc.)
+                            new_pPr.attrib.update(pPr_to_copy.attrib)
+                            
+                            # Copy all child elements (like <a:buFont>, <a:buChar>, etc.)
+                            for child in pPr_to_copy:
+                                new_pPr.append(deepcopy(child))
+                        
+                        
+                        # Add the text with the original font style
+                        run = new_p.add_run()
+                        run.text = item_text
+                        if source_font:
+                            _transfer_font_properties(source_font, run.font)
+                            
+                else: # Handle empty list or invalid data type
+                    # Set the original paragraph text to "None"
+                    p.clear()
+                    run = p.add_run()
+                    run.text = "None"
+                    if source_font:
+                        _transfer_font_properties(source_font, run.font)
+
+                # --- Text Frame Properties ---
+                tf.auto_size = MSO_AUTO_SIZE.SHAPE_TO_FIT_TEXT
+                tf.word_wrap = True
+
+                found_list_in_shape = True # Mark that we handled a list in this shape
+
+            if found_list_in_shape:
+                continue # Skip standard text replacement for this shape
 
             # --- Text Replacement Logic (preserving formatting) ---
                         # --- Text Replacement Logic (preserving formatting) ---
@@ -146,7 +232,7 @@ def generate_presentation(template_stream: BytesIO, data: dict, s3_service) -> B
                     current_text = "".join(run.text for run in para.runs)
                     
                     if placeholder_tag in current_text or simple_placeholder_tag in current_text:
-                        # THE FIX: Instead of .duplicate(), we read the font properties
+                        
                         # from the first run and apply them to the new, combined run.
                         source_font = para.runs[0].font if para.runs else None
                         
