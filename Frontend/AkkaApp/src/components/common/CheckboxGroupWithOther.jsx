@@ -1,24 +1,35 @@
 // src/components/common/CheckboxGroupWithOther.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 
-const CheckboxGroupWithOther = ({ placeholderName, choices, value, onChange }) => {
+const CheckboxGroupWithOther = ({
+  placeholderName,
+  choices,
+  value,
+  onChange,
+}) => {
   const selectedValues = new Set(value || []);
-  const [otherText, setOtherText] = useState('');
+  const [otherText, setOtherText] = useState("");
   const [isOtherChecked, setIsOtherChecked] = useState(false);
 
   // --- DEBUG LOG: Initial Render State ---
   // --- END DEBUG LOG ---
 
-
   useEffect(() => {
     // --- DEBUG LOG: useEffect Start ---
     // --- END DEBUG LOG ---
+    console.log(
+      `%c[useEffect] Running. Parent 'value' prop is:`,
+      "color: #f00",
+      value
+    );
 
     // Find the actual custom other value (not 'Other' itself, but what the user typed)
-    const actualCustomValue = (value || []).find(v => !choices.includes(v) && v !== 'Other');
+    const actualCustomValue = (value || []).find(
+      (v) => !choices.includes(v) && v !== "Other"
+    );
     // Check if the generic 'Other' string is present in the value prop
-    const isGenericOtherPresent = (value || []).includes('Other');
+    const isGenericOtherPresent = (value || []).includes("Other");
 
     // --- DEBUG LOG: useEffect - Derived values ---
     // --- END DEBUG LOG ---
@@ -27,6 +38,10 @@ const CheckboxGroupWithOther = ({ placeholderName, choices, value, onChange }) =
       // If there's actual custom text, set both text and checkbox state
       // --- DEBUG LOG: useEffect - Found actualCustomValue ---
       // --- END DEBUG LOG ---
+      console.log(
+        `%c[useEffect]   Found custom value: "${actualCustomValue}". Setting otherText state.`,
+        "color: #f00"
+      );
       setOtherText(actualCustomValue);
       setIsOtherChecked(true);
     } else if (isGenericOtherPresent) {
@@ -34,17 +49,16 @@ const CheckboxGroupWithOther = ({ placeholderName, choices, value, onChange }) =
       // and the text input should be empty.
       // --- DEBUG LOG: useEffect - Found generic 'Other' without custom value ---
       // --- END DEBUG LOG ---
-      setOtherText('');
+      setOtherText("");
       setIsOtherChecked(true);
     } else {
       // If neither custom value nor generic 'Other' is present, then "Other" is not selected.
       // --- DEBUG LOG: useEffect - 'Other' not selected ---
       // --- END DEBUG LOG ---
-      setOtherText('');
+      setOtherText("");
       setIsOtherChecked(false);
     }
   }, [value, choices]); // Re-run when parent's value prop changes or choices change
-
 
   const handleCheckboxChange = (choice) => {
     const newSelectedValues = new Set(selectedValues);
@@ -67,23 +81,22 @@ const CheckboxGroupWithOther = ({ placeholderName, choices, value, onChange }) =
 
     // Clean up any existing custom 'other' text or the generic 'Other' placeholder
     // This loop efficiently removes *any* non-predefined, non-'Other' values.
-    newSelectedValues.forEach(val => {
-      if (!choices.includes(val) && val !== 'Other') {
+    newSelectedValues.forEach((val) => {
+      if (!choices.includes(val) && val !== "Other") {
         newSelectedValues.delete(val);
       }
     });
-    newSelectedValues.delete('Other'); // Always remove the generic 'Other' before re-adding it
+    newSelectedValues.delete("Other"); // Always remove the generic 'Other' before re-adding it
 
     // --- DEBUG LOG: handleOtherCheckboxChange - After Cleanup ---
     // --- END DEBUG LOG ---
-
 
     if (willBeChecked) {
       if (otherText.trim()) {
         newSelectedValues.add(otherText.trim()); // Add actual text if present
       } else {
         // If checkbox is checked but no custom text, add 'Other' as a placeholder
-        newSelectedValues.add('Other');
+        newSelectedValues.add("Other");
       }
       // --- DEBUG LOG: handleOtherCheckboxChange - 'Other' Checked Logic ---
       // --- END DEBUG LOG ---
@@ -96,9 +109,13 @@ const CheckboxGroupWithOther = ({ placeholderName, choices, value, onChange }) =
     onChange(placeholderName, Array.from(newSelectedValues));
   };
 
-
   const handleOtherTextChange = (e) => {
     const newText = e.target.value;
+    console.log(
+      `%c[onChange] User typed. newText is: "${newText}"`,
+      "color: #00f"
+    ); // DEBUG LOG
+    setOtherText(newText);
     // --- DEBUG LOG: handleOtherTextChange Start ---
     // --- END DEBUG LOG ---
 
@@ -108,25 +125,36 @@ const CheckboxGroupWithOther = ({ placeholderName, choices, value, onChange }) =
       const newSelectedValues = new Set(selectedValues);
 
       // Clean up previous custom 'other' text (if any) and the generic 'Other' placeholder
-      newSelectedValues.forEach(val => {
-        if (!choices.includes(val) && val !== 'Other') {
+      newSelectedValues.forEach((val) => {
+        if (!choices.includes(val) && val !== "Other") {
           newSelectedValues.delete(val);
         }
       });
-      newSelectedValues.delete('Other'); // Ensure generic 'Other' is handled if it's there
+      newSelectedValues.delete("Other"); // Ensure generic 'Other' is handled if it's there
+
+      console.log(
+        `%c[onChange]   Cleaned up old 'Other' values.`,
+        "color: #00f"
+      );
 
       // --- DEBUG LOG: handleOtherTextChange - After Cleanup ---
       // --- END DEBUG LOG ---
 
       // Add the new text and the 'Other' identifier
-      if (newText.trim()) {
-        newSelectedValues.add(newText.trim()); // Add the new text if it's not just whitespace
-       } else {
-        newSelectedValues.add('Other'); // Add generic 'Other' if text is empty/whitespace
-       }
+      if (newText) {
+        newSelectedValues.add(newText);
+      } else {
+        // If the text is empty, just add "Other" to show it's checked
+        newSelectedValues.add("Other");
+      }
 
       // --- DEBUG LOG: handleOtherTextChange - Final onChange call ---
       // --- END DEBUG LOG ---
+      console.log(
+        `%c[onChange]   Calling parent onChange with:`,
+        "color: #00f",
+        Array.from(newSelectedValues)
+      );
       onChange(placeholderName, Array.from(newSelectedValues));
     }
   };
@@ -145,7 +173,10 @@ const CheckboxGroupWithOther = ({ placeholderName, choices, value, onChange }) =
             onChange={() => handleCheckboxChange(choice)}
             className="focus:ring-teal-500 h-4 w-4 text-teal-600 border-gray-300 rounded"
           />
-          <label htmlFor={`${placeholderName}-${choice}`} className="ml-3 text-sm text-gray-700">
+          <label
+            htmlFor={`${placeholderName}-${choice}`}
+            className="ml-3 text-sm text-gray-700"
+          >
             {choice}
           </label>
         </div>
@@ -163,7 +194,10 @@ const CheckboxGroupWithOther = ({ placeholderName, choices, value, onChange }) =
           onChange={handleOtherCheckboxChange}
           className="focus:ring-teal-500 h-4 w-4 text-teal-600 border-gray-300 rounded"
         />
-        <label htmlFor={`${placeholderName}-other`} className="ml-3 text-sm text-gray-700">
+        <label
+          htmlFor={`${placeholderName}-other`}
+          className="ml-3 text-sm text-gray-700"
+        >
           Other:
         </label>
         {isOtherChecked && ( // Textbox visibility controlled by isOtherChecked
