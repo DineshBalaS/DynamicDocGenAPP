@@ -16,14 +16,6 @@ const CheckboxGroupWithOther = ({
   // --- END DEBUG LOG ---
 
   useEffect(() => {
-    // --- DEBUG LOG: useEffect Start ---
-    // --- END DEBUG LOG ---
-    console.log(
-      `%c[useEffect] Running. Parent 'value' prop is:`,
-      "color: #f00",
-      value
-    );
-
     // Find the actual custom other value (not 'Other' itself, but what the user typed)
     const actualCustomValue = (value || []).find(
       (v) => !choices.includes(v) && v !== "Other"
@@ -35,13 +27,6 @@ const CheckboxGroupWithOther = ({
     // --- END DEBUG LOG ---
 
     if (actualCustomValue) {
-      // If there's actual custom text, set both text and checkbox state
-      // --- DEBUG LOG: useEffect - Found actualCustomValue ---
-      // --- END DEBUG LOG ---
-      console.log(
-        `%c[useEffect]   Found custom value: "${actualCustomValue}". Setting otherText state.`,
-        "color: #f00"
-      );
       setOtherText(actualCustomValue);
       setIsOtherChecked(true);
     } else if (isGenericOtherPresent) {
@@ -111,13 +96,7 @@ const CheckboxGroupWithOther = ({
 
   const handleOtherTextChange = (e) => {
     const newText = e.target.value;
-    console.log(
-      `%c[onChange] User typed. newText is: "${newText}"`,
-      "color: #00f"
-    ); // DEBUG LOG
     setOtherText(newText);
-    // --- DEBUG LOG: handleOtherTextChange Start ---
-    // --- END DEBUG LOG ---
 
     setOtherText(newText); // Update local state for the textbox
 
@@ -132,14 +111,6 @@ const CheckboxGroupWithOther = ({
       });
       newSelectedValues.delete("Other"); // Ensure generic 'Other' is handled if it's there
 
-      console.log(
-        `%c[onChange]   Cleaned up old 'Other' values.`,
-        "color: #00f"
-      );
-
-      // --- DEBUG LOG: handleOtherTextChange - After Cleanup ---
-      // --- END DEBUG LOG ---
-
       // Add the new text and the 'Other' identifier
       if (newText) {
         newSelectedValues.add(newText);
@@ -147,14 +118,6 @@ const CheckboxGroupWithOther = ({
         // If the text is empty, just add "Other" to show it's checked
         newSelectedValues.add("Other");
       }
-
-      // --- DEBUG LOG: handleOtherTextChange - Final onChange call ---
-      // --- END DEBUG LOG ---
-      console.log(
-        `%c[onChange]   Calling parent onChange with:`,
-        "color: #00f",
-        Array.from(newSelectedValues)
-      );
       onChange(placeholderName, Array.from(newSelectedValues));
     }
   };
