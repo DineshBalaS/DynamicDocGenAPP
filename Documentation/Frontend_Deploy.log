@@ -1,0 +1,70 @@
+# Project: PPTX Templater - Frontend Deployment Log
+**Date:** November 03, 2025
+**Status:** Successful
+**Service:** `pptx-frontend` (Render Static Site)
+**Live URL:** `https://dynamicdocgenapp.onrender.com`
+
+---
+
+## 1. Initial Deployment & Configuration
+
+- **Platform:** Render Static Site (Free Tier).
+- **Source:** GitHub repository `DynamicDocGenAPP`, branch `dev`.
+- **Build Method:** Configured as a Vite project based on `package.json`.
+    - **Root Directory:** `./Frontend/AkkaApp`
+    - **Build Command:** `npm install && npm run build`
+    - **Publish Directory:** `dist`
+
+---
+
+## 2. Troubleshooting and Fixes
+
+The initial deployment failed with build errors. A series of issues were identified and resolved.
+
+### Issue 1: Vite Environment Variable Mismatch
+- **Diagnosis:** The deployment was configured with `REACT_APP_API_BASE_URL`, but the project is a Vite build, which requires a `VITE_` prefix.
+- **Fix:**
+    1.  Modified `Frontend/AkkaApp/src/api/axiosConfig.js` to use `import.meta.env.VITE_API_BASE_URL`.
+    2.  Created a `Frontend/AkkaApp/.env.example` file with `VITE_API_BASE_URL=""` for future reference.
+    3.  Pushed the corrected files to the `dev` branch.
+
+### Issue 2: Build Failure - Missing `framer-motion`
+- **Diagnosis:** The first deployment build failed with the error: `[vite]: Rollup failed to resolve import "framer-motion" from ".../MainLayout.jsx"`.
+- **Root Cause:** The `framer-motion` library was used in the code (for page transitions) but was not listed as a dependency in `Frontend/AkkaApp/package.json`. The local `node_modules` was out of sync with `package.json`.
+- **Fix:**
+    1.  Ran `npm install framer-motion` locally in the `Frontend/AkkaApp` directory to add it as an official dependency.
+    2.  Committed the updated `package.json` and `package-lock.json` files to the `dev` branch.
+
+---
+
+## 3. Successful Deployment
+
+- **Build:** A manual deployment was triggered after pushing the `package.json` fix.
+- **Log:** The new build log confirmed `framer-motion` was successfully installed. The `vite build` command completed without errors.
+- **Status:** The service successfully deployed and went **Live**.
+
+---
+
+## 4. Final Configuration
+
+### Step 4a: SPA Routing Rule
+- **Action:** Configured the routing for the Single Page Application (SPA).
+- **Implementation:** In the `pptx-frontend` service **Settings** tab, a **Rewrite** rule was added:
+    - **Source:** `/*`
+    - **Destination:** `/index.html`
+- **Reason:** To ensure all browser requests (e.g., to `/trash` or `/generate/123`) are correctly routed to `index.html`, allowing React Router to manage the page.
+
+### Step 4b: The "Final Handshake" (CORS)
+- **Action:** Updated the live backend service (`pptx-backend`) to trust the new live frontend.
+- **Implementation:**
+    1.  Navigated to the **Environment** tab of the `pptx-backend` service.
+    2.  Edited the `CORS_ORIGINS` environment variable.
+    3.  Added the new frontend URL.
+    4.  **Final Value:** `http://localhost:5173,https://dynamicdocgenapp.onrender.com`.
+    5.  Saved changes, triggering a backend restart.
+
+---
+
+## 5. Conclusion
+
+The frontend is fully deployed and live. Both frontend and backend services are successfully connected and communicating. The application is now fully operational in a production-like (free tier) environment.

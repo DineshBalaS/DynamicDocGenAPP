@@ -1,0 +1,64 @@
+# Project: PPTX Templater - Backend Deployment Log
+**Date:** November 03, 2025
+**Status:** Successful
+**Service:** `pptx-backend` (Render Web Service)
+**Live URL:** `https://pptx-backend-wkct.onrender.com`
+
+---
+
+## 1. Initial Deployment & Configuration
+
+- **Platform:** Render Web Service (Free Tier).
+- **Source:** GitHub repository `DynamicDocGenAPP`, branch `dev`.
+- **Build Method:** Configured to use **Docker**.
+- **Monorepo Config:** Set "Root Directory" to `./Backend` to correctly locate the `Dockerfile`.
+- **Services:**
+    - Created a "Web Service" for the Flask/Gunicorn backend.
+    - Created a "PostgreSQL" service on Render's free tier to act as the database.
+- **Environment Variables:** All required variables from `config.py` were set in the Render environment dashboard, including:
+    - `DATABASE_URL` (using the internal connection string from the Render DB).
+    - `S3_BUCKET_NAME`
+    - `AWS_ACCESS_KEY_ID`
+    - `AWS_SECRET_ACCESS_KEY`
+    - `AWS_REGION`
+    - `PEXELS_API_KEY`
+    - `SECRET_KEY`
+    - `CORS_ORIGINS`
+
+---
+
+## 2. Troubleshooting and Fixes
+
+The initial deployment failed with a "Worker failed to boot" error. A series of issues were identified and resolved.
+
+### Issue 1: `ModuleNotFoundError: No module named 'requests'`
+- **Diagnosis:** The deployment log showed a crash because `app/services/s3_service.py` imported `requests`, but `requests` was not listed in `Backend/Requirements.txt`.
+- **Fix:** Added `requests==2.32.5` to `Backend/Requirements.txt` and pushed the commit.
+
+### Issue 2: Inability to Initialize Database Schema
+- **Diagnosis:** The original plan to use the "Shell" feature to run `db_setup.py` failed, as the shell is not available on Render's free tier.
+- **Fix:** Modified the `Backend/Dockerfile`'s `CMD` instruction to run the database setup script automatically *before* starting the Gunicorn server.
+- **Old `CMD`:** `CMD ["gunicorn", "--bind", "0.0.0.0:8000", "main:app"]`
+- **New `CMD`:** `CMD ["sh", "-c", "python app/database/db_setup.py && gunicorn --bind 0.0.0.0:8000 main:app"]`
+
+### Issue 3: `column "deleted_at" does not exist`
+- **Diagnosis:** The new deployment successfully ran the setup script but crashed immediately. The logs showed a `psycopg2` error. The application code in `routes.py` (specifically `GET /api/templates`) was querying for a `deleted_at` column, but the `db_setup.py` script did not create it.
+- **Fix (Schema):** Made the `db_setup.py` script idempotent and migratory. Added an `ALTER TABLE` command to add the `deleted_at` column *if it does not exist*.
+- **Fix (Code):** Removed a redundant database call in the `delete_template` function in `routes.py` for code quality and robustness.
+
+---
+
+## 3. Final Verification
+
+- **Deployment:** Pushed the final fixes. The deployment log showed the `db_setup.py` script ran successfully, followed by a clean Gunicorn worker boot.
+- **Postman Test Plan:** Conducted a full 8-step API test plan to verify all endpoints.
+- **Results:**
+    - `GET /api/templates` (Empty List): **PASSED**
+    - `POST /api/upload` (File Analysis): **PASSED**
+    - `POST /api/save_template` (DB Write + S3 Upload): **PASSED**
+    - `GET /api/templates` (Verify Creation): **PASSED**
+    - `POST /api/save_template` (Duplicate Name 409): **PASSED**
+    - `DELETE /api/templates/<id>` (Soft Delete): **PASSED**
+    - `GET /api/templates` (Verify Hide): **PASSED**
+    - `GET /api/templates/trash` (Verify Trash): **PASSED**
+- **Conclusion:** All 8 tests passed. The backend is fully deployed, stable, and production-ready.
