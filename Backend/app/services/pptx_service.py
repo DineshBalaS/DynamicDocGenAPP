@@ -94,7 +94,7 @@ def generate_presentation(template_stream: BytesIO, data: dict, s3_service) -> B
     # Regex to find image placeholders specifically
     image_pattern = re.compile(r'\{\{image:(\w+)\}\}')
     # Regex for simple text placeholders (including explicitly typed text ones)
-    text_pattern = re.compile(r'\{\{(?:text:)?(\w+)\}\}')
+    text_pattern = re.compile(r'\{\{(?:text:|choice:)?(\w+)\}\}')
 
     for slide in ppt.slides:
         shapes_to_delete = []

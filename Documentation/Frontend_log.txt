@@ -1224,3 +1224,137 @@ Form Data Lost on Refresh/Navigation: FIXED. All form data is now securely persi
 React Crash (Rules of Hooks Violation): FIXED. The white screen crash on the ReviewPage was resolved by moving all hooks to the top level of the component.
 
 UX Bugs: Fixed minor but annoying bugs in list and checkbox components that caused jarring behavior during user input.
+
+Radio Button addition:- 
+
+Phase 1: Backend Update (The "Engine")
+Goal: Teach the backend to understand and generate the new placeholder. This is a very minor change.
+
+
+File to Modify: Backend/app/services/pptx_service.py 
+
+Action:
+
+
+No change needed for extract_placeholders(): Your current regex re.compile(r'\{\{(?:(\w+):)?(\w+)\}\}')  is already smart enough. It will see {{choice:project_status}} and correctly identify it as {"name": "project_status", "type": "choice"}.
+
+Modify generate_presentation(): We just need to tell the "text replacement" logic to also handle the "choice" type.
+
+Find the line that defines text_pattern:
+
+
+text_pattern = re.compile(r'\{\{(?:text:)?(\w+)\}\}') 
+
+Change it to include choice: as a valid prefix: text_pattern = re.compile(r'\{\{(?:text:|choice:)?(\w+)\}\}')
+
+Result: The backend is now ready. The generate_presentation function will see the {{choice:project_status}} placeholder, find the project_status key in your data (e.g., "On Track"), and perform a simple text replacement, just like a normal {{text}} placeholder.
+
+Phase 2: Frontend Configuration (The "Data")
+Goal: Define the options that will appear for your new radio button groups.
+
+
+File to Modify: Frontend/src/constants/listChoices.js 
+
+Action:
+
+At the end of the file, add a new exported constant specifically for your "choice" options. This keeps it separate and clean from your "list" (checkbox) options.
+
+Add your new placeholder names and their options here. For example:
+
+JavaScript
+
+// ... (existing PREDEFINED_LIST_CHOICES) ...
+
+export const PREDEFINED_CHOICE_OPTIONS = {
+  project_status: ["On Track", "At Risk", "Delayed"],
+  another_choice: ["Option A", "Option B", "Option C"],
+};
+Result: Your frontend now knows what options to show for {{choice:project_status}}.
+
+Phase 3: Frontend UI (The "View")
+Goal: Create the new radio button component and render it on the Data Entry & Review pages.
+
+New File: Frontend/src/components/common/RadioButtonGroupWithOther.jsx
+
+Action: Create this new component.
+
+
+Plan: It will be very similar to your existing CheckboxGroupWithOther.jsx  but modified for single-select (radio buttons).
+
+It will accept placeholderName, choices, value (which will be a single string, e.g., "On Track"), and onChange.
+
+It will render <input type="radio"> for each item in choices.
+
+It will include an "Other" radio button.
+
+It will have its own local state to manage the "Other" text input's visibility and value.
+
+When any standard radio is clicked, it will call onChange(placeholderName, "Selected Choice").
+
+When the "Other" radio is clicked or its text is changed, it will call onChange(placeholderName, "Custom Other Text").
+
+Per your requirement, all options will be unselected by default if value is "".
+
+
+File to Modify: Frontend/src/pages/DataEntryPage.jsx 
+
+Action: Teach the form to render your new component.
+
+Plan:
+
+Import your new RadioButtonGroupWithOther component and the PREDEFINED_CHOICE_OPTIONS constant.
+
+
+Modify fetchDetails: In the reduce function that builds initialData, make sure choice types are initialized to an empty string "" (just like "text" and "image" types).
+
+
+Modify Form Rendering: In the .map() loop that renders the form fields, find the ph.type === "list" block.
+
+Add a new else if (ph.type === "choice") block.
+
+Inside this block:
+
+Check if PREDEFINED_CHOICE_OPTIONS[ph.name] exists.
+
+If YES: Render your new <RadioButtonGroupWithOther /> component.
+
+
+If NO: Render a standard <input type="text" ... />. This perfectly handles your fallback requirement.
+
+
+Add Handler: Create a new handler function handleRadioChange (or just reuse handleInputChange ) to update the formData state with the single string value.
+
+
+File to Modify: Frontend/src/components/common/EditableReviewRow.jsx 
+
+Action: Teach the "Review Page" how to display and edit the new "choice" type.
+
+Plan:
+
+Read-Only View: No change needed. Since the value is just a string (e.g., "On Track"), the existing renderReadOnlyView logic for "text" types will display it perfectly.
+
+
+Edit View (Your Requirement): We will use a modal, as it's the most robust and consistent UI pattern you already use for images and lists.
+
+Modify handleEditClick: Add "choice" to the condition that opens the modal.
+
+Change this line:
+
+
+if (type === "image" || type === "list") { 
+
+To this: if (type === "image" || type === "list" || type === "choice") {
+
+Modify renderModalEditView:
+
+Import RadioButtonGroupWithOther and PREDEFINED_CHOICE_OPTIONS.
+
+Add an else if (type === "choice") block inside the modal's render logic.
+
+Inside this block: Just like on the DataEntryPage, check if PREDEFINED_CHOICE_OPTIONS[placeholderKey] exists.
+
+If YES: Render <RadioButtonGroupWithOther />.
+
+If NO: Render a simple <input type="text" ... />.
+
+Wire these components up to currentValue and handleListChange (which can be renamed to handleModalInputChange since it just calls setCurrentValue).

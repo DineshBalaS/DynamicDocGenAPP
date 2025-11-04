@@ -3,6 +3,7 @@ import Modal from "../ui/Modal";
 import ImageUploader from "./ImageUploader";
 import CheckboxGroupWithOther from "./CheckboxGroupWithOther";
 import MultiTextInput from "./MultiTextInput";
+import RadioButtonGroupWithOther from "./RadioButtonGroupWithOther";
 
 // --- Configuration ---
 // These must be imported from your constants files.
@@ -10,7 +11,10 @@ import MultiTextInput from "./MultiTextInput";
 // 1. `src/constants/config.js` exporting `S3_BUCKET_BASE_URL`
 // 2. `src/constants/listChoices.js` exporting `PREDEFINED_LIST_CHOICES`
 import S3Image from "./S3Image"; // Import our new smart component
-import { PREDEFINED_LIST_CHOICES } from "../../constants/listChoices";
+import {
+  PREDEFINED_LIST_CHOICES,
+  PREDEFINED_CHOICE_OPTIONS,
+} from "../../constants/listChoices";
 
 // --- Helper Icons ---
 const EditIcon = () => (
@@ -101,7 +105,8 @@ function EditableReviewRow({
     setIsEditing(true);
 
     // For image and list types, we open a modal immediately
-    if (type === "image" || type === "list") {
+    if (type === "image" || type === "list" || type === "choice") {
+      console.log(`[EditRow] Opening modal for type: ${type}`); // DEBUG LOG
       setIsModalOpen(true);
     }
   };
@@ -141,8 +146,9 @@ function EditableReviewRow({
   };
 
   // Handler for List component changes (called from within the modal)
-  const handleListChange = (pKey, newValueArray) => {
-    setCurrentValue(newValueArray);
+  const handleModalValueChange = (pKey, newValue) => {
+    console.log(`[EditRow] Modal value change: ${newValue}`); // DEBUG LOG
+    setCurrentValue(newValue);
   };
 
   // --- Read-only View (Default) ---
@@ -256,13 +262,35 @@ function EditableReviewRow({
             placeholderName={placeholderKey}
             choices={PREDEFINED_LIST_CHOICES[placeholderKey]}
             value={currentValue}
-            onChange={handleListChange}
+            onChange={handleModalValueChange}
           />
         ) : (
           <MultiTextInput
             placeholderName={placeholderKey}
             value={currentValue}
-            onChange={handleListChange}
+            onChange={handleModalValueChange}
+          />
+        ))}
+
+      {type === "choice" &&
+        (PREDEFINED_CHOICE_OPTIONS[placeholderKey] ? (
+          // Render our new radio group
+          <RadioButtonGroupWithOther
+            placeholderName={placeholderKey}
+            choices={PREDEFINED_CHOICE_OPTIONS[placeholderKey]}
+            value={currentValue}
+            onChange={handleModalValueChange}
+          />
+        ) : (
+          // FALLBACK: Render a simple text input if no choices are defined
+          <input
+            type="text"
+            value={currentValue}
+            onChange={(e) =>
+              handleModalValueChange(placeholderKey, e.target.value)
+            }
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500"
+            placeholder={`Enter value for ${label}...`}
           />
         ))}
     </Modal>
