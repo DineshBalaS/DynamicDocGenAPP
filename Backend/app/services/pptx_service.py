@@ -222,25 +222,42 @@ def generate_presentation(template_stream: BytesIO, data: dict, s3_service) -> B
                 full_text = ''.join(run.text for run in para.runs)
                 if '{{' not in full_text:
                     continue
+                
+                # Log the full text of the paragraph we are about to scan
+                print(f"[DEBUG pptx_service] Scanning paragraph text: '{full_text}'")
+                # Log the regex we are about to use (this is the problem line)
+                print(r"[DEBUG pptx_service] Using regex: '\{\{(?:text:)?(\w+)\}\}'")
 
-                matches = re.findall(r'\{\{(?:text:)?(\w+)\}\}', full_text)
+                matches = text_pattern.findall(full_text)
+                
+                if not matches:
+                    # This will fire for your 'choice' placeholder, showing why it fails
+                    print(f"[DEBUG pptx_service] No matches found in this paragraph.")
+                else:
+                    print(f"[DEBUG pptx_service] Found matches: {matches}")
+                    
                 for ph_name in matches:
+                    print(f"[DEBUG pptx_service] Processing match: '{ph_name}'")
                     replacement_value = str(data.get(ph_name, ""))
-                    placeholder_tag = f"{{{{text:{ph_name}}}}}"
-                    simple_placeholder_tag = f"{{{{{ph_name}}}}}"
+                    placeholder_tag_text = f"{{{{text:{ph_name}}}}}"
+                    placeholder_tag_choice = f"{{{{choice:{ph_name}}}}}"
+                    placeholder_tag_simple = f"{{{{{ph_name}}}}}"
+                    
                     
                     current_text = "".join(run.text for run in para.runs)
                     
-                    if placeholder_tag in current_text or simple_placeholder_tag in current_text:
+                    if placeholder_tag_text in current_text or placeholder_tag_choice in current_text or placeholder_tag_simple in current_text:
                         
                         # from the first run and apply them to the new, combined run.
                         source_font = para.runs[0].font if para.runs else None
                         
                         # Replace placeholder in the full text string
-                        if placeholder_tag in current_text:
-                           new_text = current_text.replace(placeholder_tag, replacement_value)
+                        if placeholder_tag_text in current_text:
+                            new_text = current_text.replace(placeholder_tag_text, replacement_value)
+                        elif placeholder_tag_choice in current_text:
+                            new_text = current_text.replace(placeholder_tag_choice, replacement_value)
                         else:
-                           new_text = current_text.replace(simple_placeholder_tag, replacement_value)
+                            new_text = current_text.replace(placeholder_tag_simple, replacement_value)
                         
                         # Clear old runs and create a new one
                         para.clear()
