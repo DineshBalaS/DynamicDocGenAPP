@@ -27,17 +27,32 @@ const RadioButtonGroupWithOther = ({
     const isStandardChoice = choices.includes(value);
 
     if (value && !isStandardChoice) {
-      // The value is not standard, so it must be an "Other" value.
-      console.log(`[RadioGroup] useEffect: '${value}' is an 'Other' value.`); // DEBUG LOG
+      // --- Case 1: The value is a custom "Other" string ---
+      // This happens when typing or restoring session data.
+      // We must select "Other" and set the text.
+      console.log(`[RadioGroup] useEffect: '${value}' is an 'Other' value.`);
       setIsOtherSelected(true);
       setOtherText(value);
-    } else {
-      // The value is a standard choice or empty.
-      console.log(`[RadioGroup] useEffect: '${value}' is a standard value.`); // DEBUG LOG
+    } else if (value && isStandardChoice) {
+      // --- Case 2: The value is a standard choice ---
+      // This happens when clicking a standard radio or restoring session data.
+      // We must de-select "Other" and clear the text.
+      console.log(`[RadioGroup] useEffect: '${value}' is a standard value.`);
       setIsOtherSelected(false);
       setOtherText("");
+    } else if (!value) {
+      // --- Case 3: The value is empty ("") ---
+      // This is the ambiguous case that caused the flicker.
+      // The user might have just clicked "Other" (so isOtherSelected should be true)
+      // OR they clicked from "Other" to a standard choice (isOtherSelected should be false).
+      // We should NOT set isOtherSelected(false) here. We only clear the text
+      // if "Other" is not selected.
+      console.log(`[RadioGroup] useEffect: value is empty.`);
+      if (!isOtherSelected) {
+        setOtherText("");
+      }
     }
-  }, [value, choices]);
+  }, [value, choices, isOtherSelected]);
 
   // Handles clicking a standard (non-Other) radio button
   const handleStandardChange = (choice) => {
