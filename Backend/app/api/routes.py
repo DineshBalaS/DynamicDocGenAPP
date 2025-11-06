@@ -27,7 +27,7 @@ def get_templates():
         db = get_db()
         cur = db.cursor()
         
-        cur.execute("SELECT id, name, created_at FROM templates WHERE deleted_at IS NULL ORDER BY created_at DESC;")
+        cur.execute("SELECT id, name, created_at, description FROM templates WHERE deleted_at IS NULL ORDER BY created_at DESC;")
         
         columns = [desc[0] for desc in cur.description]
         templates = [dict(zip(columns, row)) for row in cur.fetchall()]
@@ -500,4 +500,56 @@ def get_asset_view_url():
     except Exception as e:
         current_app.logger.error(f"[GET /assets/view-url] Unexpected error for key {s3_key}: {e}")
         return jsonify({"error": "An unexpected server error occurred."}), 500
+
+@api_bp.route('/templates/<int:template_id>', methods=['PUT'])
+def update_template(template_id):
+    """
+    Endpoint to update a template's name and description.
+    """
+    data = request.get_json()
+    new_name = data.get('name', '').strip()
+    new_description = data.get('description', '') # Get description, allow it to be empty or null
+
+    # Rule 3: Validate for empty name
+    if not new_name:
+        return jsonify({"error": "Template name cannot be empty"}), 400
+
+    db = get_db()
+    try:
+        with db.cursor() as cur:
+            # Rule 2: Check for duplicate name
+            cur.execute(
+                "SELECT id FROM templates WHERE name = %s AND id != %s AND deleted_at IS NULL",
+                (new_name, template_id)
+            )
+            if cur.fetchone():
+                return jsonify({"error": "A template with this name already exists."}), 409 # 409 Conflict
+
+            # If validation passes, update the template
+            update_query = """
+                UPDATE templates
+                SET name = %s, description = %s
+                WHERE id = %s AND deleted_at IS NULL
+                RETURNING id, name, created_at, placeholders, description;
+            """
+            cur.execute(update_query, (new_name, new_description, template_id))
+            
+            updated_record = cur.fetchone()
+            
+            if updated_record is None:
+                # This means the template_id didn't exist or was already deleted
+                return jsonify({"error": "Template not found."}), 404
+
+            db.commit()
+
+            # Format the response
+            columns = [desc[0] for desc in cur.description]
+            updated_template = dict(zip(columns, updated_record))
+            
+            return jsonify(updated_template), 200
+
+    except (psycopg2.DatabaseError, Exception) as e:
+        db.rollback()
+        current_app.logger.error(f"Error updating template {template_id}: {e}")
+        return jsonify({"error": "An internal error occurred while updating the template."}), 500
     

@@ -1,6 +1,6 @@
 // src/api/templateService.js
 
-import apiClient from './axiosConfig';
+import apiClient from "./axiosConfig";
 
 /**
  * Fetches the list of all available templates from the backend.
@@ -8,12 +8,12 @@ import apiClient from './axiosConfig';
  */
 export const getTemplates = async () => {
   try {
-    const response = await apiClient.get('/api/templates');
+    const response = await apiClient.get("/api/templates");
     return response.data;
   } catch (error) {
     // Log the detailed error for debugging and throw a user-friendly message
-    console.error('Failed to fetch templates:', error);
-    throw new Error('Could not connect to the server to get templates.');
+    console.error("Failed to fetch templates:", error);
+    throw new Error("Could not connect to the server to get templates.");
   }
 };
 
@@ -23,11 +23,11 @@ export const getTemplates = async () => {
  */
 export const getTrashedTemplates = async () => {
   try {
-    const response = await apiClient.get('/api/templates/trash');
+    const response = await apiClient.get("/api/templates/trash");
     return response.data;
   } catch (error) {
-    console.error('Failed to fetch trashed templates:', error);
-    throw new Error('Could not load trashed items from the server.');
+    console.error("Failed to fetch trashed templates:", error);
+    throw new Error("Could not load trashed items from the server.");
   }
 };
 
@@ -38,11 +38,18 @@ export const getTrashedTemplates = async () => {
  */
 export const restoreTemplate = async (templateId) => {
   try {
-    const response = await apiClient.post(`/api/templates/${templateId}/restore`);
+    const response = await apiClient.post(
+      `/api/templates/${templateId}/restore`
+    );
     return response.data; // Expected: { message: "Template restored successfully." }
   } catch (error) {
-    console.error(`Failed to restore template ${templateId}:`, error.response?.data || error.message);
-    throw new Error(error.response?.data?.error || 'Failed to restore template.');
+    console.error(
+      `Failed to restore template ${templateId}:`,
+      error.response?.data || error.message
+    );
+    throw new Error(
+      error.response?.data?.error || "Failed to restore template."
+    );
   }
 };
 
@@ -52,15 +59,18 @@ export const restoreTemplate = async (templateId) => {
  * @returns {Promise<Object>} A promise that resolves to the template object.
  */
 export const getTemplateDetails = async (templateId) => {
-    try {
-        // This endpoint needs to be created on the backend.
-        // It should return the full template object, including the 'placeholders' array.
-        const response = await apiClient.get(`/api/templates/${templateId}`);
-        return response.data;
-    } catch (error) {
-        console.error(`Failed to fetch template details for ID ${templateId}:`, error);
-        throw new Error('Could not load the template details from the server.');
-    }
+  try {
+    // This endpoint needs to be created on the backend.
+    // It should return the full template object, including the 'placeholders' array.
+    const response = await apiClient.get(`/api/templates/${templateId}`);
+    return response.data;
+  } catch (error) {
+    console.error(
+      `Failed to fetch template details for ID ${templateId}:`,
+      error
+    );
+    throw new Error("Could not load the template details from the server.");
+  }
 };
 
 /**
@@ -71,17 +81,20 @@ export const getTemplateDetails = async (templateId) => {
  */
 export const uploadForAnalysis = async (file, onUploadProgress) => {
   const formData = new FormData();
-  formData.append('file', file);
+  formData.append("file", file);
 
   try {
-    const response = await apiClient.post('/api/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+    const response = await apiClient.post("/api/upload", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
       onUploadProgress,
     });
     return response.data;
   } catch (error) {
-    console.error('File analysis failed:', error.response?.data || error.message);
-    throw new Error(error.response?.data?.error || 'Failed to analyze file.');
+    console.error(
+      "File analysis failed:",
+      error.response?.data || error.message
+    );
+    throw new Error(error.response?.data?.error || "Failed to analyze file.");
   }
 };
 
@@ -93,21 +106,29 @@ export const uploadForAnalysis = async (file, onUploadProgress) => {
  * @param {Function} onUploadProgress - A callback to track upload progress.
  * @returns {Promise<Object>} A promise that resolves to the new template object.
  */
-export const saveTemplate = async (file, templateName, placeholders, onUploadProgress) => {
+export const saveTemplate = async (
+  file,
+  templateName,
+  placeholders,
+  onUploadProgress
+) => {
   const formData = new FormData();
-  formData.append('file', file);
-  formData.append('templateName', templateName);
-  formData.append('placeholders', JSON.stringify(placeholders));
+  formData.append("file", file);
+  formData.append("templateName", templateName);
+  formData.append("placeholders", JSON.stringify(placeholders));
 
   try {
-    const response = await apiClient.post('/api/save_template', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+    const response = await apiClient.post("/api/save_template", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
       onUploadProgress,
     });
     return response.data;
   } catch (error) {
-    console.error('Save template failed:', error.response?.data || error.message);
-    throw new Error(error.response?.data?.error || 'Failed to save template.');
+    console.error(
+      "Save template failed:",
+      error.response?.data || error.message
+    );
+    throw new Error(error.response?.data?.error || "Failed to save template.");
   }
 };
 
@@ -116,17 +137,22 @@ export const saveTemplate = async (file, templateName, placeholders, onUploadPro
  * @returns {Promise<Object>} A promise that resolves to an object containing the s3_key.
  */
 export const uploadAsset = async (file) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    try {
-        const response = await apiClient.post('/api/assets/upload', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-        });
-        return response.data; // Expected: { s3_key: "..." }
-    } catch (error) {
-        console.error('Asset upload failed:', error.response?.data || error.message);
-        throw new Error(error.response?.data?.error || 'Failed to upload the asset.');
-    }
+  const formData = new FormData();
+  formData.append("file", file);
+  try {
+    const response = await apiClient.post("/api/assets/upload", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response.data; // Expected: { s3_key: "..." }
+  } catch (error) {
+    console.error(
+      "Asset upload failed:",
+      error.response?.data || error.message
+    );
+    throw new Error(
+      error.response?.data?.error || "Failed to upload the asset."
+    );
+  }
 };
 
 /**
@@ -135,31 +161,39 @@ export const uploadAsset = async (file) => {
  * @param {Function} onUploadProgress - A callback to track the generation progress.
  * @returns {Promise<Object>} A promise that resolves to an object with the file blob and filename.
  */
-export const generatePresentation = async (templateId, data, onUploadProgress) => {
-    try {
-        const response = await apiClient.post('/api/generate', { templateId, data }, {
-            responseType: 'blob', // Important: tells axios to expect a binary file response
-            onUploadProgress, // For tracking the request itself
-        });
-        
-        // Extract filename from the Content-Disposition header
-        const contentDisposition = response.headers['content-disposition'];
-        let filename = 'presentation.pptx'; // A default fallback filename
-        if (contentDisposition) {
-            const filenameMatch = contentDisposition.match(/filename="(.+)"/);
-            if (filenameMatch && filenameMatch.length > 1) {
-                filename = filenameMatch[1];
-            }
-        }
-        
-        return {
-            blob: response.data,
-            filename: filename,
-        };
-    } catch (error) {
-        console.error('Presentation generation failed:', error);
-        throw new Error('Could not generate the presentation file.');
+export const generatePresentation = async (
+  templateId,
+  data,
+  onUploadProgress
+) => {
+  try {
+    const response = await apiClient.post(
+      "/api/generate",
+      { templateId, data },
+      {
+        responseType: "blob", // Important: tells axios to expect a binary file response
+        onUploadProgress, // For tracking the request itself
+      }
+    );
+
+    // Extract filename from the Content-Disposition header
+    const contentDisposition = response.headers["content-disposition"];
+    let filename = "presentation.pptx"; // A default fallback filename
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+      if (filenameMatch && filenameMatch.length > 1) {
+        filename = filenameMatch[1];
+      }
     }
+
+    return {
+      blob: response.data,
+      filename: filename,
+    };
+  } catch (error) {
+    console.error("Presentation generation failed:", error);
+    throw new Error("Could not generate the presentation file.");
+  }
 };
 
 /**
@@ -172,8 +206,13 @@ export const deleteTemplate = async (templateId) => {
     const response = await apiClient.delete(`/api/templates/${templateId}`);
     return response.data;
   } catch (error) {
-    console.error(`Failed to delete template ${templateId}:`, error.response?.data || error.message);
-    throw new Error(error.response?.data?.error || 'Failed to delete template.');
+    console.error(
+      `Failed to delete template ${templateId}:`,
+      error.response?.data || error.message
+    );
+    throw new Error(
+      error.response?.data?.error || "Failed to delete template."
+    );
   }
 };
 
@@ -183,15 +222,20 @@ export const deleteTemplate = async (templateId) => {
  * @returns {Promise<Array>} A promise that resolves to an array of image objects.
  */
 export const searchImages = async (query) => {
-    try {
-        const response = await apiClient.get('/api/images/search', {
-            params: { q: query }
-        });
-        return response.data;
-    } catch (error) {
-        console.error('Image search failed:', error.response?.data || error.message);
-        throw new Error(error.response?.data?.error || 'Failed to search for images.');
-    }
+  try {
+    const response = await apiClient.get("/api/images/search", {
+      params: { q: query },
+    });
+    return response.data;
+  } catch (error) {
+    console.error(
+      "Image search failed:",
+      error.response?.data || error.message
+    );
+    throw new Error(
+      error.response?.data?.error || "Failed to search for images."
+    );
+  }
 };
 
 /**
@@ -200,15 +244,20 @@ export const searchImages = async (query) => {
  * @returns {Promise<Object>} A promise that resolves to an object containing the s3_key.
  */
 export const uploadImageFromUrl = async (imageUrl) => {
-    try {
-        const response = await apiClient.post('/api/assets/upload_from_url', {
-            url: imageUrl
-        });
-        return response.data;
-    } catch (error) {
-        console.error('Image upload from URL failed:', error.response?.data || error.message);
-        throw new Error(error.response?.data?.error || 'Failed to upload the selected image.');
-    }
+  try {
+    const response = await apiClient.post("/api/assets/upload_from_url", {
+      url: imageUrl,
+    });
+    return response.data;
+  } catch (error) {
+    console.error(
+      "Image upload from URL failed:",
+      error.response?.data || error.message
+    );
+    throw new Error(
+      error.response?.data?.error || "Failed to upload the selected image."
+    );
+  }
 };
 
 /**
@@ -221,15 +270,46 @@ export const getAssetViewUrl = async (key) => {
   // DEBUG LOG: Log the key we are trying to fetch
 
   try {
-    const response = await apiClient.get('/api/assets/view-url', {
-      params: { key } // Sends the key as a URL query parameter
+    const response = await apiClient.get("/api/assets/view-url", {
+      params: { key }, // Sends the key as a URL query parameter
     });
     return response.data; // Expected: { url: "https://s3.url/..." }
   } catch (error) {
     // DEBUG LOG: Log the specific error
-    console.error(`Failed to get asset view URL for key ${key}:`, error.response?.data || error.message);
-    
+    console.error(
+      `Failed to get asset view URL for key ${key}:`,
+      error.response?.data || error.message
+    );
+
     // Throw a user-friendly error for the UI components to catch
-    throw new Error(error.response?.data?.error || 'Could not load image preview.');
+    throw new Error(
+      error.response?.data?.error || "Could not load image preview."
+    );
+  }
+};
+
+/**
+ * Updates a template's details (e.g., name, description).
+ * @param {number|string} templateId - The ID of the template to update.
+ * @param {Object} templateData - An object containing the fields to update (e.g., { name, description }).
+ * @returns {Promise<Object>} A promise that resolves to the fully updated template object.
+ */
+export const updateTemplate = async (templateId, templateData) => {
+  try {
+    const response = await apiClient.put(
+      `/api/templates/${templateId}`,
+      templateData
+    );
+    return response.data; // The backend should return the updated template
+  } catch (error) {
+    // Log the detailed error
+    console.error(
+      `Failed to update template ${templateId}:`,
+      error.response?.data || error.message
+    );
+    // Throw the specific error message from the backend if it exists
+    throw new Error(
+      error.response?.data?.error || "Failed to update template."
+    );
   }
 };

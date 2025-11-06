@@ -1358,3 +1358,137 @@ If YES: Render <RadioButtonGroupWithOther />.
 If NO: Render a simple <input type="text" ... />.
 
 Wire these components up to currentValue and handleListChange (which can be renamed to handleModalInputChange since it just calls setCurrentValue).
+
+## Code Report: 'Choice' Placeholder (Radio Button) Feature
+
+**Date:** November 6, 2025
+**Feature:** Implement new `{{choice:name}}` placeholder type.
+**Goal:** Render predefined radio button groups (with an "Other" option) on the data entry page, or a fallback text input if no choices are defined. Ensure this is supported in both the data entry form and the review page's "in-place edit" modal.
+
+---
+
+### I. Backend Modifications (`app/services/pptx_service.py`)
+
+* **File:** `app/services/pptx_service.py`
+* **Change 1: `extract_placeholders`**
+    * **Status:** ✅ No change needed.
+    * **Reason:** The existing regex `re.compile(r'\{\{(?:(\w+):)?(\w+)\}\}')` correctly identifies `{{choice:name}}` and parses it as `{"name": "name", "type": "choice"}`.
+* **Change 2: `generate_presentation` (Text Replacement Logic)**
+    * **Status:** ✅ Modified.
+    * **Reason:** Debugging revealed that placeholders (e.g., `{{choice:PD_or_Full_PP_or_House_holder}}`) were split across multiple text runs in the PPTX XML, causing formatting issues.
+    * **Implementation:**
+        1.  Replaced the simple "Run-by-Run" logic with a robust **Hybrid Method**.
+        2.  **Attempt 1:** The code first loops through each `run` individually. If a full placeholder is found in a single run, it's replaced, preserving all mixed formatting.
+        3.  **Attempt 2 (Fallback):** If no replacements were made (indicated by `was_run_replacement_made = False`) but the paragraph *still* contains a placeholder (`'{{' in para.text`), the code correctly identifies it as a "split-run" placeholder.
+        4.  It then falls back to the "Whole Paragraph" method: it saves the font from the first run, rebuilds the full text, replaces all placeholders, and writes the new text into a single, cleared run. This ensures all placeholders are replaced, even if it means sacrificing mixed formatting in that specific paragraph.
+
+---
+
+### II. Frontend Modifications
+
+#### 1. Configuration (`src/constants/listChoices.js`)
+
+* **Status:** ✅ Modified.
+* **Change:** Added a new exported constant `PREDEFINED_CHOICE_OPTIONS` to store the options for `choice` placeholders, keeping them separate from the `list` (checkbox) options.
+
+#### 2. New Component (`src/components/common/RadioButtonGroupWithOther.jsx`)
+
+* **Status:** ✅ New File.
+* [cite_start]**Purpose:** Created a new component modeled after `CheckboxGroupWithOther.jsx` [cite: 3521-3543] but for single-select (radio buttons).
+* **Logic:**
+    * Manages its own state for `otherText` and `isOtherSelected`.
+    * Includes an `useEffect` hook to sync its internal state with the parent `value` prop, correctly handling "Other" values vs. standard choices.
+    * Provides handlers (`handleStandardChange`, `handleOtherRadioChange`, `handleOtherTextChange`) to manage user input and call the parent `onChange` prop with a single string value.
+* **Bug Fix:** Resolved a flicker bug by updating the `useEffect` logic to correctly handle the `!value` (empty) state, preventing it from incorrectly setting `isOtherSelected(false)` when the "Other" button was just clicked.
+
+#### 3. Data Entry (`src/pages/DataEntryPage.jsx`)
+
+* **Status:** ✅ Modified.
+* **Changes:**
+    1.  **Imports:** Imported `RadioButtonGroupWithOther` and `PREDEFINED_CHOICE_OPTIONS`.
+    2.  **State Init:** Updated `fetchDetails` to initialize `choice` types to `""` (empty string) in `initialData`, just like `text` types.
+    3.  **Handler:** Added `handleSimpleChange` to accept the single string value from the new radio component and update `formData`.
+    4.  **Rendering:** Added an `else if (ph.type === "choice")` block to the form's render map.
+        * If `PREDEFINED_CHOICE_OPTIONS[ph.name]` exists, it renders `<RadioButtonGroupWithOther />`.
+        * If not, it correctly renders a fallback `<input type="text" />`.
+
+#### 4. Review & Edit (`src/components/common/EditableReviewRow.jsx`)
+
+* **Status:** ✅ Modified.
+* **Changes:**
+    1.  **Imports:** Imported `RadioButtonGroupWithOther` and `PREDEFINED_CHOICE_OPTIONS`.
+    2.  **Read-Only View:** No change needed; the simple string `value` is correctly rendered by the "text" logic.
+    3.  **Edit Handler:** Updated `handleEditClick` to include `"choice"` in the condition to open the modal.
+    4.  **Modal View:** Updated `renderModalEditView` to include an `else if (type === "choice")` block, which (like the Data Entry page) renders either `<RadioButtonGroupWithOther />` or a fallback `<input type="text" />`.
+    5.  **Modal Render Bug Fix:** The final `return` statement's JSX was updated to include the "choice" type, fixing a bug where the modal would not render.
+        * **From:** `{(type === "image" || type === "list") && renderModalEditView()}`
+        * **To:** `{(type === "image" || type === "list" || type === "choice") && renderModalEditView()}`
+
+🗺️ Latest User Journey: Editing a Template
+This journey details the "Happy Path" for a successful edit, as well as the specific error cases and edge cases you defined.
+
+Part 1: The "Happy Path" (Successful Edit)
+
+Start (Dashboard): The user is on the main dashboard (DashboardPage.jsx). They see a grid of their active templates.
+
+
+Action: The user hovers over a TemplateCard. They click the "kebab" menu (three dots) and select the "Edit" option .
+
+
+
+Frontend Response (Modal): A modal window appears (Modal.jsx). It displays a small form with two fields:
+
+Name: A text input, pre-filled with the template's current name.
+
+Description: A text area, pre-filled with the template's current description (or an empty string).
+
+User Input: The user changes the Name (e.g., to "Quarterly Review") and adds a Description (e.g., "Standard template for all Q1-Q4 client-facing reports").
+
+Saving: The user clicks the "Save" button in the modal.
+
+Full-Stack Process:
+
+Frontend: The browser sends a PUT request to a new backend endpoint (e.g., PUT /api/templates/123) with the new name and description.
+
+
+Backend: The backend API (routes.py) receives the request .
+
+It performs validation and confirms the name is not empty (as you requested).
+
+It queries the database to ensure no other template is already using that name (as you requested).
+
+Finding no errors, it runs an UPDATE command on the templates table in the PostgreSQL database, saving the new name and description.
+
+Frontend: The frontend receives a success (e.g., 200 OK) response. The modal closes, and a success toast appears ("Template updated").
+
+Final Result (Dashboard): The user is back on the dashboard. The TemplateCard they just edited has instantly updated.
+
+The title now shows "Quarterly Review".
+
+The description below the title now shows "Standard template for all Q1-Q4..." but is truncated with an ellipsis (...) to prevent overflowing the card, as per your requirement.
+
+Part 2: Error & Edge Scenarios (Based on Your Rules)
+Scenario A: User saves with an EMPTY name.
+
+Action: The user deletes all text from the "Name" field and clicks "Save".
+
+Result (Rule 3): The save is prevented. The modal remains open, and a validation error appears directly within the modal (e.g., "Name cannot be empty"). No API call is made.
+
+Scenario B: User saves with a DUPLICATE name.
+
+Action: The user renames Template A to "Old Template Name", which is already used by Template B, and clicks "Save".
+
+Result (Rule 2): The frontend sends the PUT request. The backend detects the name conflict and returns an error (e.g., 409 Conflict). The modal remains open, and an error message appears: "A template with this name already exists."
+
+Scenario C: User CANCELS an edit.
+
+Action: The user types a new name and description, but then clicks the "Cancel" button or clicks outside the modal.
+
+Result (Rule 4): The modal immediately closes. No warning is shown, and the changes are discarded.
+
+Scenario D (Excluded): User is in the TRASH.
+
+
+Action: The user navigates to the /trash page (TrashPage.jsx).
+
+Result (Rule 5): The user hovers over a template card. The kebab menu (and therefore the "Edit" button) does not appear. The TemplateCard component, using its isTrashContext prop , only shows the "Restore" action. Editing is impossible from this page.

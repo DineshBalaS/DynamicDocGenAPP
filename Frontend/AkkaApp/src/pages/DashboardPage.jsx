@@ -2,13 +2,18 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { getTemplates, deleteTemplate } from "../api/templateService";
+import {
+  getTemplates,
+  deleteTemplate,
+  updateTemplate,
+} from "../api/templateService";
 import TemplateCard from "../components/templates/TemplateCard";
 import Spinner from "../components/ui/spinner";
 import EmptyState from "../components/common/EmptyState";
 import ErrorState from "../components/common/ErrorState";
 import Modal from "../components/ui/Modal";
 import Toast from "../components/ui/Toast";
+import EditTemplateModal from "../components/templates/EditTemplateModal";
 
 const PlusIcon = () => (
   <svg
@@ -56,15 +61,19 @@ function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredTemplates, setFilteredTemplates] = useState([]);
 
+  const [templateToEdit, setTemplateToEdit] = useState(null);
+
   const fetchTemplates = useCallback(async () => {
     setStatus("loading");
     try {
       const data = await getTemplates();
+      console.log("DEBUG [Dashboard]: Templates fetched", data);
+      console.log("DEBUG: Templates fetched", data);
       setTemplates(data);
       setFilteredTemplates(data);
       setStatus("success");
     } catch (error) {
-      console.error(error);
+      console.error("DEBUG [Dashboard]: Failed to fetch templates", error);
       setStatus("error");
     }
   }, []);
@@ -89,17 +98,20 @@ function DashboardPage() {
   }, [searchQuery, templates]);
 
   const openDeleteModal = (template) => {
+    console.log("DEBUG [Dashboard]: Opening delete modal for:", template.name);
     setTemplateToDelete(template);
     setIsModalOpen(true);
   };
 
   const closeDeleteModal = () => {
+    console.log("DEBUG [Dashboard]: Closing delete modal.");
     setIsModalOpen(false);
     setTemplateToDelete(null);
   };
 
   const handleDeleteConfirm = async () => {
     if (!templateToDelete) return;
+    console.log("DEBUG [Dashboard]: Deleting template:", templateToDelete.name);
 
     try {
       await deleteTemplate(templateToDelete.id);
@@ -116,9 +128,57 @@ function DashboardPage() {
         `Failed to move template "${templateToDelete.name}" to trash.`
       );
       setToastType("error");
-      console.error(error);
+      console.error("DEBUG [Dashboard]: Delete template failed:", error);
     } finally {
       closeDeleteModal(); // Close the modal in either case
+    }
+  };
+
+  // --- Handlers for Edit Modal Component ---
+
+  const handleOpenEditModal = (template) => {
+    console.log(
+      "DEBUG [Dashboard]: Opening edit modal for template:",
+      template.name
+    ); // DEBUG LOG
+    setTemplateToEdit(template);
+  };
+
+  const handleCloseEditModal = () => {
+    console.log("DEBUG [Dashboard]: Closing edit modal."); // DEBUG LOG
+    setTemplateToEdit(null);
+  };
+
+  /**
+   * This function is passed as the onSave prop to the EditTemplateModal.
+   * It contains all the API logic.
+   * @param {Object} formData - The form data { name, description } from the modal.
+   */
+  const handleSaveEdit = async (formData) => {
+    try {
+      console.log(
+        `DEBUG [Dashboard]: Sending update to API for template ${templateToEdit.id}:`,
+        formData
+      ); // DEBUG LOG
+      const updatedTemplate = await updateTemplate(templateToEdit.id, formData);
+      console.log(
+        "DEBUG [Dashboard]: API update successful, response:",
+        updatedTemplate
+      ); // DEBUG LOG
+      // Update the template in the local state for instant UI refresh
+      setTemplates((currentTemplates) =>
+        currentTemplates.map((t) =>
+          t.id === updatedTemplate.id ? updatedTemplate : t
+        )
+      );
+
+      setToastMessage("Template updated successfully.");
+      setToastType("success");
+      handleCloseEditModal(); // Close modal on success
+    } catch (error) {
+      console.error("DEBUG [Dashboard]: API update failed:", error); // DEBUG LOG
+      // Re-throw the error so the modal can catch it and display it
+      throw error;
     }
   };
 
@@ -150,18 +210,12 @@ function DashboardPage() {
                   key={template.id}
                   template={template}
                   onDelete={openDeleteModal}
+                  onEdit={handleOpenEditModal}
                 />
               ))}
             </div>
           );
         }
-      // return (
-      //   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-      //     {filteredTemplates.map((template) => (
-      //       <TemplateCard key={template.id} template={template} onDelete={openDeleteModal} />
-      //     ))}
-      //   </div>
-      // );
 
       default:
         return null;
@@ -178,6 +232,7 @@ function DashboardPage() {
           onDismiss={() => setToastMessage(null)}
         />
       )}
+      {/* Delete Confirmation Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={closeDeleteModal}
@@ -190,6 +245,13 @@ function DashboardPage() {
         Are you sure you want to move the template "{templateToDelete?.name}" to
         the trash? It will be permanently deleted after 30 days.
       </Modal>
+      {/* --- New Edit Template Modal (Refactored) --- */}
+      <EditTemplateModal
+        isOpen={templateToEdit !== null}
+        onClose={handleCloseEditModal}
+        onSave={handleSaveEdit}
+        template={templateToEdit}
+      />
       {/* Page Header */}
       <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
         <h1 className="text-3xl font-bold text-gray-800 flex-shrink-0">

@@ -36,7 +36,7 @@ const RestoreIcon = () => (
     </svg>
 );
 
-function TemplateCard({ template, onDelete, isTrashContext = false, onRestore }) {
+function TemplateCard({ template, onDelete, onEdit, isTrashContext = false, onRestore }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false); // State to track hover
   const menuRef = useRef(null);
@@ -59,6 +59,13 @@ function TemplateCard({ template, onDelete, isTrashContext = false, onRestore })
   const handleDeleteClick = () => {
     if (onDelete) {
       onDelete(template);
+    }
+    setIsMenuOpen(false);
+  };
+
+  const handleEditClick = () => {
+    if (onEdit) {
+      onEdit(template);
     }
     setIsMenuOpen(false);
   };
@@ -89,7 +96,8 @@ function TemplateCard({ template, onDelete, isTrashContext = false, onRestore })
       </div>
       <div className="p-4">
         <h3 className="font-bold text-gray-800 truncate">{template.name}</h3>
-        <p className="text-sm text-gray-500">
+        {/* Rule 1: Display description and truncate if long */}
+        <p className="text-sm text-gray-500 truncate">
           {template.description || "No description"}
         </p>
       </div>
@@ -138,12 +146,12 @@ function TemplateCard({ template, onDelete, isTrashContext = false, onRestore })
             <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 ring-1 ring-black ring-opacity-5">
               <div className="py-1">
                 {/* Edit Action */}
-                <a
-                  href="#" // TODO: Replace with actual edit link/handler
-                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  Edit
-                </a>
+                <button
+                  onClick={handleEditClick}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                 >
+                   Edit                
+                </button>
                 {/* Delete Action */}
                 <button
                   onClick={handleDeleteClick}
