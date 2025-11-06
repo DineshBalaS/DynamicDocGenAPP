@@ -219,54 +219,68 @@ def generate_presentation(template_stream: BytesIO, data: dict, s3_service) -> B
             # --- Text Replacement Logic (preserving formatting) ---
                         # --- Text Replacement Logic (preserving formatting) ---
             for para in shape.text_frame.paragraphs:
-                full_text = ''.join(run.text for run in para.runs)
-                if '{{' not in full_text:
+                # Optimization: Skip paragraphs that don't contain any placeholders
+                if '{{' not in para.text:
                     continue
-                
-                # Log the full text of the paragraph we are about to scan
-                print(f"[DEBUG pptx_service] Scanning paragraph text: '{full_text}'")
-                # Log the regex we are about to use (this is the problem line)
-                print(r"[DEBUG pptx_service] Using regex: '\{\{(?:text:)?(\w+)\}\}'")
 
-                matches = text_pattern.findall(full_text)
-                
-                if not matches:
-                    # This will fire for your 'choice' placeholder, showing why it fails
-                    print(f"[DEBUG pptx_service] No matches found in this paragraph.")
-                else:
-                    print(f"[DEBUG pptx_service] Found matches: {matches}")
+                # --- Attempt 1: Run-by-Run Replacement (Preserves Formatting) ---
+                was_run_replacement_made = False
+                for run in para.runs:
+                    if '{{' not in run.text:
+                        continue
                     
-                for ph_name in matches:
-                    print(f"[DEBUG pptx_service] Processing match: '{ph_name}'")
-                    replacement_value = str(data.get(ph_name, ""))
-                    placeholder_tag_text = f"{{{{text:{ph_name}}}}}"
-                    placeholder_tag_choice = f"{{{{choice:{ph_name}}}}}"
-                    placeholder_tag_simple = f"{{{{{ph_name}}}}}"
+                    matches = text_pattern.findall(run.text)
+                    if not matches:
+                        continue
+
+                    modified_text = run.text
+                    for ph_name in matches:
+                        replacement_value = str(data.get(ph_name, ""))
+                        
+                        placeholder_tag_text = f"{{{{text:{ph_name}}}}}"
+                        placeholder_tag_choice = f"{{{{choice:{ph_name}}}}}"
+                        placeholder_tag_simple = f"{{{{{ph_name}}}}}"
+                        
+                        modified_text = modified_text.replace(placeholder_tag_text, replacement_value)
+                        modified_text = modified_text.replace(placeholder_tag_choice, replacement_value)
+                        modified_text = modified_text.replace(placeholder_tag_simple, replacement_value)
                     
+                    if modified_text != run.text:
+                        run.text = modified_text
+                        was_run_replacement_made = True
+
+                # --- Attempt 2: Fallback for Split-Run Placeholders ---
+                # If no runs were replaced, but the paragraph *still* has a
+                # placeholder, it must be split across runs.
+                if not was_run_replacement_made and '{{' in para.text:
                     
-                    current_text = "".join(run.text for run in para.runs)
+                    # We must use the "whole paragraph" method.
+                    full_text_from_runs = "".join(run.text for run in para.runs)
+                    matches = text_pattern.findall(full_text_from_runs)
+
+                    if not matches:
+                        continue # Should be rare, but a safe check
+
+                    source_font = para.runs[0].font if para.runs else None
+                    modified_full_text = full_text_from_runs
                     
-                    if placeholder_tag_text in current_text or placeholder_tag_choice in current_text or placeholder_tag_simple in current_text:
+                    for ph_name in matches:
+                        replacement_value = str(data.get(ph_name, ""))
                         
-                        # from the first run and apply them to the new, combined run.
-                        source_font = para.runs[0].font if para.runs else None
+                        placeholder_tag_text = f"{{{{text:{ph_name}}}}}"
+                        placeholder_tag_choice = f"{{{{choice:{ph_name}}}}}"
+                        placeholder_tag_simple = f"{{{{{ph_name}}}}}"
                         
-                        # Replace placeholder in the full text string
-                        if placeholder_tag_text in current_text:
-                            new_text = current_text.replace(placeholder_tag_text, replacement_value)
-                        elif placeholder_tag_choice in current_text:
-                            new_text = current_text.replace(placeholder_tag_choice, replacement_value)
-                        else:
-                            new_text = current_text.replace(placeholder_tag_simple, replacement_value)
-                        
-                        # Clear old runs and create a new one
-                        para.clear()
-                        new_run = para.add_run()
-                        new_run.text = new_text
-                        
-                        # Apply the saved font properties
-                        if source_font:
-                            _transfer_font_properties(source_font, new_run.font)
+                        modified_full_text = modified_full_text.replace(placeholder_tag_text, replacement_value)
+                        modified_full_text = modified_full_text.replace(placeholder_tag_choice, replacement_value)
+                        modified_full_text = modified_full_text.replace(placeholder_tag_simple, replacement_value)
+                    
+                    para.clear()
+                    new_run = para.add_run()
+                    new_run.text = modified_full_text
+                    
+                    if source_font:
+                        _transfer_font_properties(source_font, new_run.font)
                         
         # After iterating all shapes, delete the placeholder shapes
         for shape in shapes_to_delete:

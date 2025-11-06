@@ -89,6 +89,10 @@ function EditableReviewRow({
   const [currentValue, setCurrentValue] = useState(value);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  console.log(
+    `[EditRow ${placeholderKey}] Render. isEditing=${isEditing}, isModalOpen=${isModalOpen}, isDisabled=${isDisabled}`
+  );
+
   // Debug log for component render
 
   // Sync local state if the main prop value changes from outside
@@ -107,6 +111,9 @@ function EditableReviewRow({
     // For image and list types, we open a modal immediately
     if (type === "image" || type === "list" || type === "choice") {
       console.log(`[EditRow] Opening modal for type: ${type}`); // DEBUG LOG
+      console.log(
+        `[EditRow ${placeholderKey}] Opening modal for type: ${type}. Current isModalOpen state: ${isModalOpen}`
+      );
       setIsModalOpen(true);
     }
   };
@@ -296,15 +303,28 @@ function EditableReviewRow({
     </Modal>
   );
 
+  console.log(
+    `[EditRow ${placeholderKey}] renderModalEditView called. isModalOpen=${isModalOpen}`
+  );
+
   return (
     <div className="py-4 sm:grid sm:grid-cols-3 sm:gap-4">
       <dt className="text-sm font-medium text-gray-600 capitalize">{label}</dt>
+
+      {console.log(
+        `[EditRow ${placeholderKey}] In JSX: isEditing=${isEditing}, type=${type}`
+      )}
 
       {isEditing && type === "text"
         ? renderTextEditView()
         : renderReadOnlyView()}
 
-      {(type === "image" || type === "list") && renderModalEditView()}
+      {console.log(
+        `[EditRow ${placeholderKey}] In JSX: Modal check. type=${type}, isModalOpen=${isModalOpen}`
+      )}
+
+      {(type === "image" || type === "list" || type === "choice") &&
+        renderModalEditView()}
     </div>
   );
 }
