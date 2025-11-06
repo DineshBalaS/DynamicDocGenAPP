@@ -13,7 +13,7 @@ import EmptyState from "../components/common/EmptyState";
 import ErrorState from "../components/common/ErrorState";
 import Modal from "../components/ui/Modal";
 import Toast from "../components/ui/Toast";
-import EditTemplateModal from "../components/templates/EditTemplateModal";
+import EditTemplatePanel from "../components/templates/EditTemplatePanel";
 
 const PlusIcon = () => (
   <svg
@@ -245,9 +245,9 @@ function DashboardPage() {
         Are you sure you want to move the template "{templateToDelete?.name}" to
         the trash? It will be permanently deleted after 30 days.
       </Modal>
-      {/* --- New Edit Template Modal (Refactored) --- */}
-      <EditTemplateModal
-        isOpen={templateToEdit !== null}
+      {/* Panel for Editing Template */}
+      <EditTemplatePanel
+        isOpen={!!templateToEdit} // !!{} -> true, !!null -> false
         onClose={handleCloseEditModal}
         onSave={handleSaveEdit}
         template={templateToEdit}
