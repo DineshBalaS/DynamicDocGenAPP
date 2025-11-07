@@ -49,7 +49,7 @@ const panelVariants = {
  * @param {React.ReactNode} [footer] - Optional content to display in a fixed footer (e.g., action buttons).
  */
 const SidePanel = ({ isOpen, onClose, title, children, footer }) => {
-    console.log("DEBUG: SidePanel.jsx (v2 - blur-none, max-w-2xl) is rendering.");
+    console.log("DEBUG: SidePanel.jsx (v3 - redesign, max-w-lg) is rendering.");
   // Use a portal to render the modal at the top of the DOM tree (document.body).
   // This prevents z-index issues with other components.
   return ReactDOM.createPortal(
@@ -58,7 +58,7 @@ const SidePanel = ({ isOpen, onClose, title, children, footer }) => {
         <>
           {/* Backdrop Overlay */}
           <motion.div
-            className="fixed inset-0 z-40 bg-black bg-opacity-50 backdrop-blur-none"
+            className="fixed inset-0 z-40"
             variants={backdropVariants}
             initial="hidden"
             animate="visible"
@@ -70,7 +70,7 @@ const SidePanel = ({ isOpen, onClose, title, children, footer }) => {
 
           {/* Side Panel Container */}
           <motion.div
-            className="fixed top-0 right-0 z-50 flex h-full w-full max-w-2xl flex-col bg-white shadow-xl"
+            className="fixed top-0 right-0 z-50 flex h-full w-full max-w-lg flex-col bg-white shadow-xl"
             variants={panelVariants}
             initial="hidden"
             animate="visible"
@@ -84,7 +84,7 @@ const SidePanel = ({ isOpen, onClose, title, children, footer }) => {
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2
                 id="side-panel-title"
-                className="text-xl font-semibold text-gray-900"
+                className="text-xl font-semibold text-teal-700"
               >
                 {title}
               </h2>

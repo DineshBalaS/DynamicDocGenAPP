@@ -14,7 +14,7 @@ import { useState, useEffect } from "react";
 export function useTemplateForm({ template, onSave }) {
   // Internal state for the form
   const [formData, setFormData] = useState({ name: "", description: "" });
-  const [error, setError] = useState(null);
+  const [error, setError] = useState({});
   const [isSaving, setIsSaving] = useState(false);
 
   /**
@@ -29,12 +29,12 @@ export function useTemplateForm({ template, onSave }) {
         description: template.description || "", // Ensure description is not null
       });
       // Clear all transient state when a new template is passed in
-      setError(null);
+      setError({});
       setIsSaving(false);
     } else {
       // If template is null (panel closed), reset form
       setFormData({ name: "", description: "" });
-      setError(null);
+      setError({});
       setIsSaving(false);
     }
   }, [template]);
@@ -48,6 +48,12 @@ export function useTemplateForm({ template, onSave }) {
       ...prevData,
       [name]: value,
     }));
+
+    // 2. Clear the specific field's error when the user starts typing
+    if (error[name]) {
+      console.log(`DEBUG: Clearing error for field: ${name}`);
+      setError((prev) => ({ ...prev, [name]: null }));
+    }
   };
 
   /**
@@ -57,14 +63,18 @@ export function useTemplateForm({ template, onSave }) {
   const handleSubmit = async (e) => {
     e.preventDefault(); // Prevent default form submission
 
+    // 3. Clear all errors at the start of a new submission attempt
+    console.log("DEBUG: handleSubmit initiated, clearing errors.");
+    setError({});
+
     // 1. Client-side validation
     if (!formData.name.trim()) {
-      setError("Template Name cannot be empty.");
+      console.log("DEBUG: Validation failed: Template Name is empty.");
+      setError({ name: "Template Name cannot be empty." });
       return;
     }
 
     // 2. Set saving state
-    setError(null);
     setIsSaving(true);
 
     try {
@@ -72,8 +82,9 @@ export function useTemplateForm({ template, onSave }) {
       await onSave(formData);
       // Success is handled by the parent (i.e., closing the panel)
     } catch (err) {
-      // 4. Handle errors from the API
-      setError(err.message || "An unknown error occurred.");
+      // 5. Handle general/API errors
+      console.error("DEBUG: API save error:", err);
+      setError({ general: err.message || "An unknown error occurred." });
     } finally {
       // 5. Reset saving state
       setIsSaving(false);
