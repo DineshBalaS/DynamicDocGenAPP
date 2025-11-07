@@ -68,6 +68,7 @@ function TemplateCard({ template, onDelete, onEdit, isTrashContext = false, onRe
       onEdit(template);
     }
     setIsMenuOpen(false);
+    setIsHovered(false);
   };
 
   const handleRestoreClick = () => {

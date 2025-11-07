@@ -58,7 +58,7 @@ const SidePanel = ({ isOpen, onClose, title, children, footer }) => {
         <>
           {/* Backdrop Overlay */}
           <motion.div
-            className="fixed inset-0 z-40"
+            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
             variants={backdropVariants}
             initial="hidden"
             animate="visible"
