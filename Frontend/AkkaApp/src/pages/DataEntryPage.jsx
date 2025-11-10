@@ -279,7 +279,7 @@ function DataEntryPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500"
                   placeholder={`Enter value for ${ph.name}...`}
                 />
-              ) : ph.type === "image" ? (
+              ) : (ph.type === "image" || ph.type === "scrape") ? (
                 <ImageUploader
                   placeholderName={ph.name}
                   onUploadSuccess={handleImageUploadSuccess}

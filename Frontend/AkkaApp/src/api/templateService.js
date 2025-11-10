@@ -248,6 +248,7 @@ export const uploadImageFromUrl = async (imageUrl) => {
     const response = await apiClient.post("/api/assets/upload_from_url", {
       url: imageUrl,
     });
+    console.log(`[templateService] Uploaded from URL, s3_key: ${response.data.s3_key}`);
     return response.data;
   } catch (error) {
     console.error(
@@ -256,6 +257,33 @@ export const uploadImageFromUrl = async (imageUrl) => {
     );
     throw new Error(
       error.response?.data?.error || "Failed to upload the selected image."
+    );
+  }
+};
+
+/**
+ * Scrapes a given URL for images via the backend.
+ * @param {string} pageUrl - The URL of the page to scrape.
+ * @returns {Promise<Array>} A promise that resolves to an array of image URL strings.
+ */
+export const scrapeImagesFromUrl = async (pageUrl) => {
+  try {
+    // DEBUG LOG: Initiating scrape request
+    console.log(`[templateService] Scraping URL: ${pageUrl}`);
+    const response = await apiClient.post("/api/scrape/images", {
+      url: pageUrl,
+    });
+    // DEBUG LOG: Successfully scraped images
+    console.log(`[templateService] Found ${response.data.length} images from scrape.`);
+    return response.data; // Expected: ["url1.jpg", "url2.png", ...]
+  } catch (error) {
+    console.error(
+      "Image scrape failed:",
+      error.response?.data || error.message
+    );
+    // Throw the specific, educational error from the backend if it exists
+    throw new Error(
+      error.response?.data?.error || "Could not fetch images from this URL."
     );
   }
 };

@@ -4,6 +4,8 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 from flask import current_app
 
+MIN_DIMENSION = 50
+
 # --- Custom Exception Classes ---
 
 class ScrapeError(Exception):
@@ -96,6 +98,27 @@ def fetch_images_from_url(page_url: str) -> list[str]:
             if src.startswith('data:image/'):
                 current_app.logger.debug("[Scrape Service] Skipping data URI image.")
                 continue
+            
+            try:
+               width_str = img.get('width', '').replace('px', '').strip()
+               height_str = img.get('height', '').replace('px', '').strip()
+               
+               if width_str:
+                   width = int(float(width_str)) # Use float() to handle "100.0"
+                   if width < MIN_DIMENSION:
+                       current_app.logger.debug(f"[Scrape Service] Skipping small image (width: {width}px).")
+                       continue
+               
+               if height_str:
+                   height = int(float(height_str))
+                   if height < MIN_DIMENSION:
+                       current_app.logger.debug(f"[Scrape Service] Skipping small image (height: {height}px).")
+                       continue
+                       
+            except ValueError:
+                # Catches "auto" or other non-integer values, which we allow
+                current_app.logger.debug(f"[Scrape Service] Skipping image with non-pixel dimensions (w: {img.get('width')}, h: {img.get('height')}).")
+                pass
 
             # --- Production-Ready Check 3: Resolve relative URLs ---
             # This turns '/images/foo.png' into 'https://example.com/images/foo.png'
