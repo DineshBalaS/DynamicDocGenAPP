@@ -9,7 +9,9 @@ from flask import jsonify, request, send_file, current_app
 from . import api_bp
 from app import get_db, get_s3
 from app.services import pptx_service
+from app.services import scrape_service
 from app.services.s3_service import S3Service, S3UploadError, S3Error
+from app.services.scrape_service import ScrapeRequestError, ScrapeError
 
 #allowed image extensions for the asset uploader
 ALLOWED_IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif'}
@@ -553,3 +555,35 @@ def update_template(template_id):
         current_app.logger.error(f"Error updating template {template_id}: {e}")
         return jsonify({"error": "An internal error occurred while updating the template."}), 500
     
+@api_bp.route('/scrape/images', methods=['POST'])
+def scrape_images():
+    """
+    Accepts a URL, scrapes it for images, and returns a list of image URLs.
+    """
+    data = request.get_json()
+    url = data.get('url')
+
+    if not url:
+        current_app.logger.warning("[POST /scrape/images] Request failed: URL is required.")
+        return jsonify({"error": "URL is required."}), 400
+
+    current_app.logger.info(f"[POST /scrape/images] Initiating scrape for URL: {url}")
+
+    try:
+        # 1. Call the new service function
+        image_urls = scrape_service.fetch_images_from_url(url)
+        
+        # 2. Success Response
+        current_app.logger.info(f"[POST /scrape/images] Scrape successful. Found {len(image_urls)} images for {url}.")
+        return jsonify(image_urls), 200
+
+    except ScrapeRequestError as e:
+        # 3. Handle client-side errors (e.g., bad URL, 404, timeout)
+        current_app.logger.warning(f"[POST /scrape/images] Scrape request failed for {url}: {e}")
+        # Return 400 as this is a "bad request" from the user
+        return jsonify({"error": str(e)}), 400
+    
+    except (ScrapeError, Exception) as e:
+        # 4. Handle server-side errors (e.g., parsing failed, service down)
+        current_app.logger.error(f"[POST /scrape/images] Scrape parsing failed for {url}: {e}")
+        return jsonify({"error": "Failed to fetch or parse images from the provided URL."}), 500

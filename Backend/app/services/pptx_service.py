@@ -91,8 +91,8 @@ def generate_presentation(template_stream: BytesIO, data: dict, s3_service) -> B
     ppt = Presentation(template_stream)
     # Regex to find list placeholders specifically
     list_pattern = re.compile(r'\{\{list:(\w+)\}\}')
-    # Regex to find image placeholders specifically
-    image_pattern = re.compile(r'\{\{image:(\w+)\}\}')
+    # Regex to find image/scrape placeholders specifically
+    image_pattern = re.compile(r'\{\{(?:image|scrape):(\w+)\}\}')
     # Regex for simple text placeholders (including explicitly typed text ones)
     text_pattern = re.compile(r'\{\{(?:text:|choice:)?(\w+)\}\}')
 
@@ -106,8 +106,8 @@ def generate_presentation(template_stream: BytesIO, data: dict, s3_service) -> B
             shape_text = shape.text_frame.text
 
             # --- Image Replacement Logic ---
-            if '{{image:' in shape.text_frame.text:
-                match = re.search(r'\{\{image:(\w+)\}\}', shape.text_frame.text)
+            if '{{image:' in shape_text or '{{scrape:' in shape_text:
+                match = image_pattern.search(shape_text)
                 if match:
                     ph_name = match.group(1)
                     s3_key = data.get(ph_name)

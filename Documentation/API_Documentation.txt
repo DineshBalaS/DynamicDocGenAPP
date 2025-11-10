@@ -347,3 +347,183 @@ This endpoint retrieves a list of all templates that have been soft-deleted (mov
     * ❌ **Error Response** (`500 Internal Server Error`): A database error occurred.
         * Example Body: `{"error": "A database error occurred while fetching trashed items."}`
 ---
+
+## GET /api/assets/view-url
+This endpoint generates a secure, temporary pre-signed URL for a given S3 key. This is used by the frontend to display previews of uploaded images (like company logos) without making the S3 objects public.
+
+Purpose: To securely get a temporary URL for an asset stored in S3.
+
+Method: GET
+
+Query Parameters:
+
+key (string, required): The S3 key of the asset (e.g., temp/abc-123.jpg).
+
+Security:
+
+This endpoint will only process keys that begin with the temp/ prefix. Any request for a key outside this prefix (e.g., a template file) will be rejected with a 403 Forbidden error.
+
+Responses:
+
+✅ Success Response (200 OK):
+
+Content: A JSON object containing the pre-signed URL.
+
+Example Body:
+
+JSON
+
+{
+    "url": "https://[your-bucket].s3.amazonaws.com/temp/abc-123.jpg?AWSAccessKeyId=...&Signature=...&Expires=..."
+}
+❌ Error Responses:
+
+400 Bad Request:
+
+JSON
+
+{
+    "error": "Missing 'key' query parameter"
+}
+403 Forbidden:
+
+JSON
+
+{
+    "error": "Access denied"
+}
+500 Internal Server Error:
+
+JSON
+
+{
+    "error": "Failed to generate viewable URL."
+}
+
+PUT /api/templates/<template_id>
+This endpoint updates the metadata for an existing, non-deleted template. It is primarily used for changing a template's name and description.
+
+Purpose: To edit the name and description of a template.
+
+Method: PUT
+
+Path Parameters:
+
+template_id (integer, required): The unique identifier of the template to update.
+
+Request Body: application/json
+
+name (string, required): The new name for the template. Cannot be empty.
+
+description (string, optional): The new description for the template.
+
+Validation:
+
+The name field cannot be empty.
+
+The name must be unique. The endpoint will return a 409 Conflict error if another template already uses the provided name.
+
+Responses:
+
+✅ Success Response (200 OK):
+
+Content: A JSON object containing the complete, updated template record.
+
+Example Body:
+
+JSON
+
+{
+    "id": 12,
+    "name": "New Template Name",
+    "created_at": "2025-10-20T14:22:01Z",
+    "placeholders": [...],
+    "description": "This is the new description."
+}
+❌ Error Responses:
+
+400 Bad Request:
+
+JSON
+
+{
+    "error": "Template name cannot be empty"
+}
+404 Not Found:
+
+JSON
+
+{
+    "error": "Template not found."
+}
+409 Conflict:
+
+JSON
+
+{
+    "error": "A template with this name already exists."
+}
+500 Internal Server Error:
+
+JSON
+
+{
+    "error": "An internal error occurred while updating the template."
+}
+## POST /api/scrape/images
+This endpoint accepts a public URL, scrapes that webpage for image (<img>) tags, and returns a list of unique, absolute image URLs found on the page.
+
+Purpose: To fetch all image sources from a given webpage.
+
+Method: POST
+
+Request Body: application/json
+
+url (string, required): The public URL of the webpage to scrape.
+
+Process:
+
+The backend service fetches the URL using a browser-like User-Agent.
+
+It parses the HTML, finds all <img> tags, and resolves relative paths (e.g., /img/foo.png) into absolute URLs.
+
+It filters out data-URIs and other non-http links.
+
+Responses:
+
+✅ Success Response (200 OK):
+
+Content: A JSON array of unique, absolute image URL strings.
+
+Example Body:
+
+JSON
+
+[
+    "https://example.com/images/header.jpg",
+    "https://example.com/content/blog/post-image.png",
+    "https://some-cdn.com/logo.jpg"
+]
+❌ Error Responses:
+
+400 Bad Request (Invalid Input):
+
+JSON
+
+{
+    "error": "URL is required."
+}
+400 Bad Request (Scrape Failure):
+
+JSON
+
+{
+    "error": "Failed to fetch or access the URL. It may be offline or invalid."
+}
+500 Internal Server Error (Parse Failure):
+
+JSON
+
+{
+    "error": "Failed to fetch or parse images from the provided URL."
+}
