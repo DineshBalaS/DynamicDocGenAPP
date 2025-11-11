@@ -133,7 +133,7 @@ function UrlScrapeModal({ isOpen, onClose, onUploadSuccess }) {
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm"/>
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
@@ -147,8 +147,9 @@ function UrlScrapeModal({ isOpen, onClose, onUploadSuccess }) {
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-lg bg-white p-6 text-left align-middle shadow-xl transition-all">
-                <div className="flex justify-between items-center">
+              <Dialog.Panel className="w-full max-w-2xl transform rounded-lg bg-white text-left align-middle shadow-xl transition-all flex flex-col max-h-[85vh]">
+                {/* Header */}
+                <div className="flex-shrink-0 flex justify-between items-center p-6 border-b border-gray-200">
                   <Dialog.Title
                     as="h3"
                     className="text-lg font-medium leading-6 text-gray-900"
@@ -164,11 +165,8 @@ function UrlScrapeModal({ isOpen, onClose, onUploadSuccess }) {
                   </button>
                 </div>
 
-                {/* [FIX] This div is no longer nested in a <p> tag */}
-                <div
-                  className="mt-4 flex flex-col space-y-4"
-                  style={{ minHeight: "400px" }}
-                >
+                {/* Scrolling Body */}
+                <div className="flex-grow overflow-y-auto p-6 space-y-4">
                   {/* Input Section */}
                   <div className="flex space-x-2">
                     <input
@@ -202,7 +200,7 @@ function UrlScrapeModal({ isOpen, onClose, onUploadSuccess }) {
 
                   {status !== "idle" && (
                     <div
-                      className="flex-grow border border-gray-200 rounded-md p-2 bg-gray-50 overflow-y-auto"
+                      className="flex-grow border border-gray-200 rounded-md p-2 bg-gray-50"
                       style={{ minHeight: "300px" }}
                     >
                       <ImageScrapeGrid
@@ -214,30 +212,28 @@ function UrlScrapeModal({ isOpen, onClose, onUploadSuccess }) {
                       />
                     </div>
                   )}
-
-                  {/* Footer with actions */}
-                  <div className="flex justify-between items-center pt-4 border-t">
-                    <div>
-                      {uploadStatus === "error" && (
-                        <p className="text-sm text-red-600">{errorMessage}</p>
-                      )}
-                    </div>
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={handleClose}
-                        className="px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleConfirmUpload}
-                        disabled={isConfirmDisabled}
-                        className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 disabled:bg-gray-400 flex items-center"
-                      >
-                        {uploadStatus === "uploading" && <LoadingSpinner />}
-                        Confirm and Upload
-                      </button>
-                    </div>
+                </div>
+                <div className="flex-shrink-0 flex justify-between items-center p-6 border-t border-gray-200">
+                  <div>
+                    {uploadStatus === "error" && (
+                      <p className="text-sm text-red-600">{errorMessage}</p>
+                    )}
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={handleClose}
+                      className="px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleConfirmUpload}
+                      disabled={isConfirmDisabled}
+                      className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 disabled:bg-gray-400 flex items-center"
+                    >
+                      {uploadStatus === "uploading" && <LoadingSpinner />}
+                      Confirm and Upload
+                    </button>
                   </div>
                 </div>
               </Dialog.Panel>
