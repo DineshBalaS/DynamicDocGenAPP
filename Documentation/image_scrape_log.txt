@@ -324,3 +324,50 @@ The backend implementation for this feature is now complete and test-ready. All 
 
 
 Frontend (Next): Implement the UrlScrapeModal.jsx component, add the "Scrape from URL" button to ImageUploader.jsx, and add the scrapeImagesFromUrl function to the templateService.js API client .
+
+## Code Report
+Project: PPTX Templater Application
+Feature: Image Scrape Workflow
+Date: November 11, 2025
+Report: Step 3 of 3 - Frontend UI Implementation
+Status: Completed
+
+1. Objective
+The objective of this step was to implement the complete frontend user interface for the image scrape workflow, allowing users to scrape images from a URL, select one, and upload it.
+
+2. Scope of This Change
+[cite_start]This update involved creating two new React components and modifying the `ImageUploader` to integrate them, as planned[cite: 72].
+
+File: `src/components/common/UrlScrapeModal.jsx` (New File)
+Change: Created a new, self-contained modal to manage the entire scrape-and-upload process.
+Integration:
+* Manages internal state for `urlInput`, `status` ('idle', 'loading', 'success', 'error'), and `uploadStatus`.
+* [cite_start]Calls the `scrapeImagesFromUrl` service on "Fetch Images" click and updates the grid status[cite: 17].
+* [cite_start]Calls the `uploadImageFromUrl` service on "Confirm and Upload" click, triggering the parent's `onUploadSuccess` prop on success[cite: 13].
+* Imports and renders the new `ImageScrapeGrid` component, passing it the current status, image list, and error messages.
+
+File: `src/components/common/ImageScrapeGrid.jsx` (New File)
+Change: Created a new component dedicated to rendering the scrape results, handling all UI states.
+Robustness Features:
+* Displays a masonry-style skeleton loader (`SkeletonLoader`) during the 'loading' state.
+* Displays an educational error message and icon (`ErrorWarningIcon`) during the 'error' state, as requested.
+* Implements a robust, client-side filtering check (`handleImageLoad`) that hides any image with a `naturalWidth` or `naturalHeight` less than `MIN_DIMENSION` (50px). This provides a final filter for small icons that the backend service may have missed.
+
+File: `src/components/common/ImageUploader.jsx` (Modified File)
+[cite_start]Change: Integrated the new workflow as planned[cite: 24].
+Integration:
+* [cite_start]Imports the `UrlScrapeModal` component[cite: 25].
+* [cite_start]Adds `isScrapeModalOpen` state to manage its visibility[cite: 25].
+* [cite_start]Adds a "Scrape from URL" button to the UI, which sets `isScrapeModalOpen` to true[cite: 26].
+* [cite_start]Renders the `<UrlScrapeModal>` component and wires its `onClose` and `onUploadSuccess` props, ensuring the modal closes and the uploader updates on a successful scrape[cite: 27].
+
+3. Current System Status
+As of this update, the Image Scrape Workflow is feature-complete from end to end.
+* [cite_start]Analysis (/api/upload): READY. [cite: 68]
+* [cite_start]Generation (/api/generate): READY. [cite: 68]
+* [cite_start]Scraping (/api/scrape/images): READY. [cite: 69]
+* [cite_start]Uploading (/api/assets/upload_from_url): READY. [cite: 70]
+* Frontend UI: READY. [cite_start]The user can now successfully complete the entire workflow: "Scrape from URL" -> "Fetch Images" -> "Confirm and Upload". [cite: 28, 29, 30, 31, 32, 33, 34, 35, 36, 37]
+
+4. Next Steps
+This feature is complete. The project is ready for the next phase of development or user acceptance testing.

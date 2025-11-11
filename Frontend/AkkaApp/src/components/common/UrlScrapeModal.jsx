@@ -5,7 +5,7 @@ import {
   scrapeImagesFromUrl,
   uploadImageFromUrl,
 } from "../../api/templateService";
-import ImageScrapeGrid from "./ImageScrapeGrid"; // Helper component
+import ImageScrapeGrid from "./ImageScrapeGrid"; 
 import { Dialog, Transition } from "@headlessui/react";
 
 const LoadingSpinner = () => (
@@ -31,7 +31,7 @@ const LoadingSpinner = () => (
   </svg>
 );
 
-// [NEW] Close Icon
+// Close Icon
 const XIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -186,7 +186,7 @@ function UrlScrapeModal({ isOpen, onClose, onUploadSuccess }) {
                     </button>
                   </div>
 
-                  {/* [FIX] Conditionally render the grid container to hide it when idle */}
+                  {/* Conditionally render the grid container to hide it when idle */}
                   {status === "idle" && (
                     <div
                       className="flex-grow flex justify-center items-center h-full"
