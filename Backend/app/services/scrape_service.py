@@ -88,6 +88,10 @@ def fetch_images_from_url(page_url: str) -> list[str]:
         # 3. Extract and clean URLs
         for img in images:
             src = img.get('src')
+            
+            width_attr = img.get('width', 'N/A')
+            height_attr = img.get('height', 'N/A')
+            current_app.logger.debug(f"[Scrape Service] Checking img src: {src} (HTML width: {width_attr}, height: {height_attr})")
 
             # --- Production-Ready Check 2: Filter bad/irrelevant 'src' attributes ---
             if not src:

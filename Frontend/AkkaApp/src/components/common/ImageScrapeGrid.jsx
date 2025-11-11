@@ -61,6 +61,20 @@ function ImageScrapeGrid({
   selectedImageUrl,
   onSelect,
 }) {
+  const MIN_DIMENSION = 50; // Min pixels for width/height
+
+  const handleImageLoad = (e) => {
+    const img = e.target;
+    // Check the actual downloaded image dimensions
+    if (img.naturalWidth < MIN_DIMENSION || img.naturalHeight < MIN_DIMENSION) {
+      // This is the most robust filter. Hide the image.
+      img.style.display = "none";
+      console.log(
+        `[ImageScrapeGrid] Hiding small image (dims: ${img.naturalWidth}x${img.naturalHeight})`
+      ); // DEBUG LOG
+    }
+  };
+
   const renderContent = () => {
     switch (status) {
       case "loading":
@@ -87,23 +101,28 @@ function ImageScrapeGrid({
 
       case "success":
         return (
-          // Masonry Grid (using CSS columns for simplicity and support)
-          <div className="column-count-2 sm:column-count-3 md:column-count-4 gap-2">
+          // Robust CSS Grid (mimics ImageSearchModal.jsx)
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
             {images.map((url, index) => (
-              <img
+              <div
                 key={index}
-                src={url}
-                alt={`Scraped ${index + 1}`}
-                onClick={() => onSelect(url)}
-                className={`block w-full h-auto object-cover rounded-md mb-2 break-inside-avoid cursor-pointer transition-all
+                className={`relative aspect-square rounded-lg overflow-hidden cursor-pointer group transition-all duration-200
                   ${
                     selectedImageUrl === url
-                      ? "ring-4 ring-teal-500 ring-offset-2" // Simple border (as requested)
-                      : "hover:opacity-80"
+                      ? "ring-4 ring-offset-2 ring-teal-500"
+                      : ""
                   }`}
-                // Basic "best practice" filter: hide images that fail to load
-                onError={(e) => (e.target.style.display = "none")}
-              />
+                onClick={() => onSelect(url)}
+              >
+                <img
+                  src={url}
+                  alt={`Scraped ${index + 1}`}
+                  className="w-full h-full object-cover"
+                  onError={(e) => (e.target.style.display = "none")}
+                  onLoad={handleImageLoad}
+                />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              </div>
             ))}
           </div>
         );
