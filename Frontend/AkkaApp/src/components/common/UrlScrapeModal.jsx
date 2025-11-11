@@ -122,7 +122,7 @@ function UrlScrapeModal({ isOpen, onClose, onUploadSuccess }) {
 
   return (
     <Transition appear show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-30" onClose={handleClose}>
+      <Dialog as="div" className="relative z-50" onClose={handleClose}>
         {/* The overlay */}
         <Transition.Child
           as={Fragment}
