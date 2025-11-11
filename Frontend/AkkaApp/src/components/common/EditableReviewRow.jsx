@@ -88,6 +88,7 @@ function EditableReviewRow({
   const [isEditing, setIsEditing] = useState(false);
   const [currentValue, setCurrentValue] = useState(value);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const isImageLike = type === "image" || type === "scrape";
 
   console.log(
     `[EditRow ${placeholderKey}] Render. isEditing=${isEditing}, isModalOpen=${isModalOpen}, isDisabled=${isDisabled}`
@@ -109,7 +110,7 @@ function EditableReviewRow({
     setIsEditing(true);
 
     // For image and list types, we open a modal immediately
-    if (type === "image" || type === "list" || type === "choice") {
+    if (isImageLike || type === "list" || type === "choice") {
       console.log(`[EditRow] Opening modal for type: ${type}`); // DEBUG LOG
       console.log(
         `[EditRow ${placeholderKey}] Opening modal for type: ${type}. Current isModalOpen state: ${isModalOpen}`
@@ -162,7 +163,7 @@ function EditableReviewRow({
   const renderReadOnlyView = () => {
     let displayValue;
 
-    if (type === "image") {
+    if (isImageLike) {
       displayValue = (
         <S3Image
           s3Key={value} // Pass the s3_key
@@ -255,7 +256,7 @@ function EditableReviewRow({
       cancelText="Cancel"
     >
       {/* Render the correct edit component inside the modal */}
-      {type === "image" && (
+      {isImageLike && (
         <ImageUploader
           placeholderName={placeholderKey}
           onUploadSuccess={handleImageUploadSuccess}
@@ -323,7 +324,7 @@ function EditableReviewRow({
         `[EditRow ${placeholderKey}] In JSX: Modal check. type=${type}, isModalOpen=${isModalOpen}`
       )}
 
-      {(type === "image" || type === "list" || type === "choice") &&
+      {(isImageLike || type === "list" || type === "choice") &&
         renderModalEditView()}
     </div>
   );
