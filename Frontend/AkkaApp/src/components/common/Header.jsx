@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Link, NavLink } from "react-router-dom";
+import appLogo from "../../assets/Logo.PNG";
 
 function Header() {
   // Style for the active NavLink
@@ -34,14 +35,17 @@ function Header() {
     <header className="bg-white shadow-md sticky top-0 z-50">
       <nav className="container mx-auto px-6 py-4 flex justify-between items-center">
         {/* App Logo and Title */}
-        <Link to="/" className="flex items-center space-x-2">
-          {/* You can replace this with an actual SVG logo later */}
-          <div className="w-8 h-8 bg-teal-500 rounded-md flex items-center justify-center font-bold text-white text-lg">
-            P
+        <Link to="/" className="flex items-center space-x-3">
+          {/* Wrapper div for teal background, matching old style */}
+          <div className="w-10 h-10 bg-teal-500 rounded-md flex items-center justify-center">
+            {/* Logo image, slightly smaller to have padding */}
+            <img
+              src={appLogo}
+              alt="Plandome PPT Logo"
+              className="w-8 h-8" // w-6 h-6 to fit inside the w-8 h-8 parent
+            />
           </div>
-          <span className="text-xl font-bold text-gray-800">
-            PPTX Templater
-          </span>
+          <span className="text-xl font-bold text-gray-800">PLANDOME PPT</span>
         </Link>
 
         {/* Navigation Links */}
