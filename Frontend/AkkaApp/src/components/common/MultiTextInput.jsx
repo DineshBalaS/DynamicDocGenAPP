@@ -10,11 +10,8 @@ const MultiTextInput = ({ placeholderName, value, onChange }) => {
   const handleItemChange = (index, text) => {
     const newItems = [...items];
     newItems[index] = text;
-    // Filter out empty strings when reporting change, unless it's the only item left
-    const filteredItems = newItems.filter(item => item.trim() !== '');
-    onChange(placeholderName, filteredItems.length > 0 ? filteredItems : ['']); // Send [''] if all were cleared, else send filtered
-     // Keep internal state with potentially empty strings for editing experience
-     // onChange(placeholderName, newItems); // Report potentially empty strings too
+    // Report the array exactly as it is, including empty strings.
+    onChange(placeholderName, newItems);
   };
 
   const addItem = () => {
@@ -26,8 +23,8 @@ const MultiTextInput = ({ placeholderName, value, onChange }) => {
 
   const removeItem = (index) => {
     const newItems = items.filter((_, i) => i !== index);
-    // If removing results in an empty list, ensure one empty input remains
-     onChange(placeholderName, newItems.length > 0 ? newItems : ['']);
+    const finalItems = newItems.length > 0 ? newItems : [''];
+     onChange(placeholderName, finalItems);
   };
 
   return (

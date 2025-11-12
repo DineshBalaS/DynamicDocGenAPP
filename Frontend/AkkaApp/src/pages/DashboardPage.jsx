@@ -1,49 +1,80 @@
 // src/pages/DashboardPage.jsx
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import { getTemplates, deleteTemplate } from '../api/templateService';
-import TemplateCard from '../components/templates/TemplateCard';
-import Spinner from '../components/ui/spinner';
-import EmptyState from '../components/common/EmptyState';
-import ErrorState from '../components/common/ErrorState';
-import Modal from '../components/ui/Modal'; 
-import Toast from '../components/ui/Toast';
+import React, { useState, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
+import {
+  getTemplates,
+  deleteTemplate,
+  updateTemplate,
+} from "../api/templateService";
+import TemplateCard from "../components/templates/TemplateCard";
+import Spinner from "../components/ui/spinner";
+import EmptyState from "../components/common/EmptyState";
+import ErrorState from "../components/common/ErrorState";
+import Modal from "../components/ui/Modal";
+import Toast from "../components/ui/Toast";
+import EditTemplatePanel from "../components/templates/EditTemplatePanel";
 
 const PlusIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
-    </svg>
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="3"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <line x1="12" y1="5" x2="12" y2="19"></line>
+    <line x1="5" y1="12" x2="19" y2="12"></line>
+  </svg>
 );
 
 const SearchIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="11" cy="11" r="8"></circle>
+    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
   </svg>
 );
 
 function DashboardPage() {
   const [templates, setTemplates] = useState([]);
-  const [status, setStatus] = useState('loading');
+  const [status, setStatus] = useState("loading");
   const [toastMessage, setToastMessage] = useState(null); // 'loading', 'success', 'error'
-  const [toastType, setToastType] = useState('success'); // Added state for toast type
+  const [toastType, setToastType] = useState("success"); // Added state for toast type
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [templateToDelete, setTemplateToDelete] = useState(null)
+  const [templateToDelete, setTemplateToDelete] = useState(null);
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [filteredTemplates, setFilteredTemplates] = useState([]);
 
+  const [templateToEdit, setTemplateToEdit] = useState(null);
+
   const fetchTemplates = useCallback(async () => {
-    setStatus('loading');
+    setStatus("loading");
     try {
       const data = await getTemplates();
+      console.log("DEBUG [Dashboard]: Templates fetched", data);
+      console.log("DEBUG: Templates fetched", data);
       setTemplates(data);
       setFilteredTemplates(data);
-      setStatus('success');
+      setStatus("success");
     } catch (error) {
-      console.error(error);
-      setStatus('error');
+      console.error("DEBUG [Dashboard]: Failed to fetch templates", error);
+      setStatus("error");
     }
   }, []);
 
@@ -58,7 +89,7 @@ function DashboardPage() {
     } else {
       // Filter the templates based on the search query (case-insensitive)
       const lowerCaseQuery = searchQuery.toLowerCase();
-      const filtered = templates.filter(template =>
+      const filtered = templates.filter((template) =>
         template.name.toLowerCase().includes(lowerCaseQuery)
       );
       setFilteredTemplates(filtered);
@@ -67,49 +98,104 @@ function DashboardPage() {
   }, [searchQuery, templates]);
 
   const openDeleteModal = (template) => {
+    console.log("DEBUG [Dashboard]: Opening delete modal for:", template.name);
     setTemplateToDelete(template);
     setIsModalOpen(true);
   };
 
   const closeDeleteModal = () => {
+    console.log("DEBUG [Dashboard]: Closing delete modal.");
     setIsModalOpen(false);
     setTemplateToDelete(null);
   };
 
   const handleDeleteConfirm = async () => {
     if (!templateToDelete) return;
+    console.log("DEBUG [Dashboard]: Deleting template:", templateToDelete.name);
 
     try {
       await deleteTemplate(templateToDelete.id);
       // On success, remove the template from the local state for an instant UI update
-      setTemplates(currentTemplates => currentTemplates.filter(t => t.id !== templateToDelete.id));
+      setTemplates((currentTemplates) =>
+        currentTemplates.filter((t) => t.id !== templateToDelete.id)
+      );
       // Update success message and ensure type is success
       setToastMessage(`Template "${templateToDelete.name}" moved to trash.`);
-      setToastType('success');
+      setToastType("success");
     } catch (error) {
       // Set error message and type
-      setToastMessage(`Failed to move template "${templateToDelete.name}" to trash.`);
-      setToastType('error');
-      console.error(error);
+      setToastMessage(
+        `Failed to move template "${templateToDelete.name}" to trash.`
+      );
+      setToastType("error");
+      console.error("DEBUG [Dashboard]: Delete template failed:", error);
     } finally {
       closeDeleteModal(); // Close the modal in either case
     }
   };
 
+  // --- Handlers for Edit Modal Component ---
+
+  const handleOpenEditModal = (template) => {
+    console.log(
+      "DEBUG [Dashboard]: Opening edit modal for template:",
+      template.name
+    ); // DEBUG LOG
+    setTemplateToEdit(template);
+  };
+
+  const handleCloseEditModal = () => {
+    console.log("DEBUG [Dashboard]: Closing edit modal."); // DEBUG LOG
+    setTemplateToEdit(null);
+  };
+
+  /**
+   * This function is passed as the onSave prop to the EditTemplateModal.
+   * It contains all the API logic.
+   * @param {Object} formData - The form data { name, description } from the modal.
+   */
+  const handleSaveEdit = async (formData) => {
+    try {
+      console.log(
+        `DEBUG [Dashboard]: Sending update to API for template ${templateToEdit.id}:`,
+        formData
+      ); // DEBUG LOG
+      const updatedTemplate = await updateTemplate(templateToEdit.id, formData);
+      console.log(
+        "DEBUG [Dashboard]: API update successful, response:",
+        updatedTemplate
+      ); // DEBUG LOG
+      // Update the template in the local state for instant UI refresh
+      setTemplates((currentTemplates) =>
+        currentTemplates.map((t) =>
+          t.id === updatedTemplate.id ? updatedTemplate : t
+        )
+      );
+
+      setToastMessage("Template updated successfully.");
+      setToastType("success");
+      handleCloseEditModal(); // Close modal on success
+    } catch (error) {
+      console.error("DEBUG [Dashboard]: API update failed:", error); // DEBUG LOG
+      // Re-throw the error so the modal can catch it and display it
+      throw error;
+    }
+  };
+
   const renderContent = () => {
     switch (status) {
-      case 'loading':
+      case "loading":
         return <Spinner />;
-      
-      case 'error':
+
+      case "error":
         return <ErrorState onRetry={fetchTemplates} />;
 
-      case 'success':
+      case "success":
         if (templates.length === 0) {
           // Still show EmptyState if the user has no templates *at all*.
           return <EmptyState />;
         } else if (filteredTemplates.length === 0 && searchQuery) {
-           // Show "No results" message only if a search was performed and yielded nothing.
+          // Show "No results" message only if a search was performed and yielded nothing.
           return (
             <div className="text-center text-gray-500 mt-8">
               No templates found matching "{searchQuery}".
@@ -120,18 +206,16 @@ function DashboardPage() {
           return (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {filteredTemplates.map((template) => (
-                <TemplateCard key={template.id} template={template} onDelete={openDeleteModal} />
+                <TemplateCard
+                  key={template.id}
+                  template={template}
+                  onDelete={openDeleteModal}
+                  onEdit={handleOpenEditModal}
+                />
               ))}
             </div>
           );
         }
-        // return (
-        //   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        //     {filteredTemplates.map((template) => (
-        //       <TemplateCard key={template.id} template={template} onDelete={openDeleteModal} />
-        //     ))}
-        //   </div>
-        // );
 
       default:
         return null;
@@ -148,54 +232,73 @@ function DashboardPage() {
           onDismiss={() => setToastMessage(null)}
         />
       )}
+      {/* Delete Confirmation Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={closeDeleteModal}
         onConfirm={handleDeleteConfirm}
         title="Delete Template?"
-        confirmText="Delete"      
-        cancelText="Cancel"       
+        confirmText="Delete"
+        cancelText="Cancel"
         confirmButtonVariant="danger"
       >
-        Are you sure you want to move the template "{templateToDelete?.name}" to the trash? It will be permanently deleted after 30 days.
+        Are you sure you want to move the template "{templateToDelete?.name}" to
+        the trash? It will be permanently deleted after 30 days.
       </Modal>
+      {/* Panel for Editing Template */}
+      <EditTemplatePanel
+        isOpen={!!templateToEdit} // !!{} -> true, !!null -> false
+        onClose={handleCloseEditModal}
+        onSave={handleSaveEdit}
+        template={templateToEdit}
+      />
       {/* Page Header */}
       <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
-        <h1 className="text-3xl font-bold text-gray-800 flex-shrink-0">Your Templates</h1>
+        <h1 className="text-3xl font-bold text-gray-800 flex-shrink-0">
+          Your Templates
+        </h1>
         {/* Search Input (visible on medium screens and up, grows but has max width) */}
-        <div className="hidden md:flex flex-grow justify-center max-w-lg relative group"> {/* Added 'group' */}
-
-          {/* Search Icon (Added transition and group-hover effect) */}
-          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 group-hover:text-teal-500 transition-colors duration-300 ease-in-out"> {/* Added group-hover:text-teal-500 and transition classes */}
-            <SearchIcon />
+        {/* Conditionally render the search bar only if templates exist */}
+        {status === "success" && templates.length > 0 && (
+          <div className="hidden md:flex flex-grow justify-center max-w-lg relative group">
+            {" "}
+            {/* Added 'group' */}
+            {/* Search Icon (Added transition and group-hover effect) */}
+            <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 group-hover:text-teal-500 transition-colors duration-300 ease-in-out">
+              {" "}
+              {/* Added group-hover:text-teal-500 and transition classes */}
+              <SearchIcon />
+            </div>
+            <input
+              type="text"
+              placeholder="Search templates..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              // Added hover effects (border, shadow) and transition classes
+              className="p-2 pl-10 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent hover:border-teal-500 hover:shadow-md transition-all duration-300 ease-in-out" // Added hover:border-teal-500, hover:shadow-md, transition-all, duration-300, ease-in-out
+            />
           </div>
-
-          <input
-            type="text"
-            placeholder="Search templates..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            // Added hover effects (border, shadow) and transition classes
-            className="p-2 pl-10 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent hover:border-teal-500 hover:shadow-md transition-all duration-300 ease-in-out" // Added hover:border-teal-500, hover:shadow-md, transition-all, duration-300, ease-in-out
-          />
-        </div>
+        )}
         {/* Action Buttons Container (groups search icon and upload button) */}
-        <div className="flex items-center gap-2 flex-shrink-0"> {/* Use gap for spacing */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {" "}
+          {/* Use gap for spacing */}
           {/* Search Icon Button (visible only on small screens) */}
-          {status === 'success' && templates.length > 0 && (
+          {status === "success" && templates.length > 0 && (
             <button
               // Show only on small screens (hidden on md and up)
               className="md:hidden p-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500"
-              onClick={() => { /* Add logic later if needed, e.g., open search modal/expand input */ }}
+              onClick={() => {
+                /* Add logic later if needed, e.g., open search modal/expand input */
+              }}
               aria-label="Search"
             >
               <SearchIcon />
             </button>
           )}
-
           {/* Upload New Template Button (always visible if conditions met) */}
-          {status === 'success' && templates.length > 0 && (
-             <Link
+          {status === "success" && templates.length > 0 && (
+            <Link
               to="/upload"
               className="flex items-center space-x-2 bg-teal-500 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-teal-600 transition-all duration-300 transform hover:scale-105"
             >

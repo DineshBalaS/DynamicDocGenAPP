@@ -9,11 +9,17 @@ import Spinner from "../components/ui/spinner";
 import ErrorState from "../components/common/ErrorState";
 import ImageUploader from "../components/common/ImageUploader";
 import NoPlaceholdersFound from "../components/common/NoPlaceholdersFound";
-import { PREDEFINED_LIST_CHOICES } from "../constants/listChoices";
+import {
+  PREDEFINED_LIST_CHOICES,
+  PREDEFINED_CHOICE_OPTIONS,
+} from "../constants/listChoices";
+import RadioButtonGroupWithOther from "../components/common/RadioButtonGroupWithOther";
 import CheckboxGroupWithOther from "../components/common/CheckboxGroupWithOther";
 import MultiTextInput from "../components/common/MultiTextInput";
 import { useNavigationBlocker } from "../hooks/useNavigationBlocker";
 import Modal from "../components/ui/Modal";
+
+const DATA_ENTRY_SESSION_KEY = "dataEntrySession";
 
 function DataEntryPage() {
   const { templateId } = useParams();
@@ -27,7 +33,6 @@ function DataEntryPage() {
 
   // State for form data and generation process
   const [formData, setFormData] = useState({});
-  const [imagePreviews, setImagePreviews] = useState({});
   const [isFormValid, setIsFormValid] = useState(false);
 
   // State for navigation blocker
@@ -39,17 +44,64 @@ function DataEntryPage() {
     setIsLoading(true);
     setError(null);
     try {
-      // NOTE: This call assumes a GET /api/templates/:id endpoint exists.
-      // If not, you might need to adjust this logic or your backend.
+      // 1. Always fetch the canonical template structure
       const data = await getTemplateDetails(templateId);
       setTemplate(data);
-      // Initialize form data with empty strings for each placeholder
-      const initialData = data.placeholders.reduce((acc, ph) => {
-        acc[ph.name] = "";
-        return acc;
-      }, {});
-      setFormData(initialData);
+
+      console.log(
+        `[DataEntryPage] Fetched template details for ID: ${templateId}`
+      ); // DEBUG LOG
+
+      // 2. Try to get restored data
+      const storedSession = sessionStorage.getItem(DATA_ENTRY_SESSION_KEY);
+      let restoredData = null;
+
+      if (storedSession) {
+        try {
+          restoredData = JSON.parse(storedSession);
+        } catch (e) {
+          console.error("[DataEntryPage] Failed to parse session data", e); // DEBUG LOG
+          sessionStorage.removeItem(DATA_ENTRY_SESSION_KEY); // Clear corrupt data
+        }
+      }
+
+      // 3. Check if we have valid, matching restored data
+      if (restoredData && restoredData.templateId === templateId) {
+        // We have matching data, so restore it
+        console.log(
+          `[DataEntryPage] Restoring form data from session for template ID: ${templateId}`
+        ); // DEBUG LOG
+        setFormData(restoredData.formData);
+        // We no longer set imagePreviews state
+        setIsDirty(true); // Data is loaded, so it's "dirty"
+      } else {
+        // No matching data, so initialize a fresh form
+        console.log(
+          `[DataEntryPage] Initializing fresh form for template ID: ${templateId}`
+        ); // DEBUG LOG
+        const initialData = data.placeholders.reduce((acc, ph) => {
+          if (ph.type === "list") {
+            acc[ph.name] = [];
+          } else {
+            // This now correctly initializes "text", "image", and "choice" to ""
+            acc[ph.name] = "";
+          }
+
+          return acc;
+        }, {});
+        setFormData(initialData);
+        setIsDirty(false); // It's a fresh form
+
+        // If there was mismatched data, clear it
+        if (restoredData) {
+          console.log(
+            `[DataEntryPage] Clearing mismatched session data for template ID: ${restoredData.templateId}`
+          ); // DEBUG LOG
+          sessionStorage.removeItem(DATA_ENTRY_SESSION_KEY);
+        }
+      }
     } catch (err) {
+      console.error(`[DataEntryPage] Error in fetchDetails:`, err); // DEBUG LOG
       setError(err.message);
     } finally {
       setIsLoading(false);
@@ -83,6 +135,24 @@ function DataEntryPage() {
     setIsFormValid(allFieldsFilled);
   }, [formData, template]);
 
+  useEffect(() => {
+    // Only save if the form is dirty and not loading
+    if (isDirty && !isLoading && template) {
+      console.log(
+        `[DataEntryPage] Saving state to session storage for template ID: ${template.id}`
+      ); // DEBUG LOG
+      const sessionData = {
+        templateId: template.id,
+        formData,
+        template, // Save the template object itself for the review page
+      };
+      sessionStorage.setItem(
+        DATA_ENTRY_SESSION_KEY,
+        JSON.stringify(sessionData)
+      );
+    }
+  }, [formData, isDirty, isLoading, template]);
+
   // Setup the navigation blocker
   // It's active only if the form is dirty AND we aren't submitting.
   const { showModal, handleConfirmNavigation, handleCancelNavigation } =
@@ -95,6 +165,15 @@ function DataEntryPage() {
     setIsDirty(true); // Mark form as dirty
   };
 
+  // This handler works for our new RadioButtonGroupWithOther component
+  const handleSimpleChange = (placeholderName, newValue) => {
+    console.log(
+      `[DataEntryPage] handleSimpleChange: key=${placeholderName}, value=${newValue}`
+    ); // DEBUG LOG
+    setFormData((prev) => ({ ...prev, [placeholderName]: newValue }));
+    setIsDirty(true);
+  };
+
   // This single handler works for both CheckboxGroupWithOther and MultiTextInput
   const handleListChange = (placeholderName, newValueArray) => {
     setFormData((prev) => ({ ...prev, [placeholderName]: newValueArray }));
@@ -102,9 +181,11 @@ function DataEntryPage() {
   };
 
   // handler to accept and store the local preview URL from ImageUploader
-  const handleImageUploadSuccess = (placeholderName, s3_key, previewUrl) => {
+  const handleImageUploadSuccess = (placeholderName, s3_key) => {
+    console.log(
+      `[DataEntryPage] handleImageUploadSuccess: key=${placeholderName}, s3_key=${s3_key}`
+    ); // DEBUG LOG
     setFormData((prev) => ({ ...prev, [placeholderName]: s3_key }));
-    setImagePreviews((prev) => ({ ...prev, [placeholderName]: previewUrl }));
     setIsDirty(true);
   };
 
@@ -117,15 +198,12 @@ function DataEntryPage() {
   // This effect runs when 'isSubmitting' becomes true
   useEffect(() => {
     if (isSubmitting) {
-      navigate(`/review/${templateId}`, {
-        state: {
-          template,
-          formData,
-          imagePreviews,
-        },
-      });
+      console.log(
+        `[DataEntryPage] Navigating to review page for template ID: ${templateId}`
+      ); // DEBUG LOG
+      navigate(`/review/${templateId}`);
     }
-  }, [isSubmitting, navigate, template, formData, imagePreviews]);
+  }, [isSubmitting, navigate, templateId]);
 
   // Render loading state
   if (isLoading) {
@@ -205,8 +283,6 @@ function DataEntryPage() {
                 <ImageUploader
                   placeholderName={ph.name}
                   onUploadSuccess={handleImageUploadSuccess}
-                  // Pass existing preview if available (useful if navigating back)
-                  initialPreviewUrl={imagePreviews[ph.name]}
                   initialS3Key={formData[ph.name]}
                 />
               ) : ph.type === "list" ? (
@@ -224,6 +300,26 @@ function DataEntryPage() {
                     placeholderName={ph.name}
                     value={formData[ph.name]} // Pass the array state
                     onChange={handleListChange} // Use the same new handler
+                  />
+                )
+              ) : ph.type === "choice" ? (
+                // Check if we have predefined choices for this radio placeholder
+                PREDEFINED_CHOICE_OPTIONS[ph.name] ? (
+                  <RadioButtonGroupWithOther
+                    placeholderName={ph.name}
+                    choices={PREDEFINED_CHOICE_OPTIONS[ph.name]}
+                    value={formData[ph.name]} // Pass the string state
+                    onChange={handleSimpleChange} // Use the new simple handler
+                  />
+                ) : (
+                  // FALLBACK: Render a simple text input if no choices are defined
+                  <input
+                    type="text"
+                    name={ph.name}
+                    value={formData[ph.name] || ""}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500"
+                    placeholder={`Enter value for ${ph.name}...`}
                   />
                 )
               ) : null /* Handle potential unknown types in the future */

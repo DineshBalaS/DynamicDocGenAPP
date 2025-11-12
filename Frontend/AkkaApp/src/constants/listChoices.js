@@ -26,8 +26,34 @@ export const PREDEFINED_LIST_CHOICES = {
     "Ventilation statement (a third party document)",
     "EMAQ statement (a third party document)",
     "Noise Survey (a third party document)",
-    "Radon Risk Assessment (a third party document)"
+    "Radon Risk Assessment (a third party document)",
+  ],
+  constraints: [
+    "Conservation area",
+    "Article 4",
+    "Flood Zone",
+    "Green Belt",
+    "AONB",
+    "Surface flooding",
+    "Listed Building",
+    "Grey belt",
+    "High street",
+    "Restrictive covenant",
+    "National Park",
+    "Affordable housing",
+    "Tree Preservation Orders",
+    "Ecology",
+    "Contaminated land",
+    "Sites of Scientific Interest",
+    "CIL",
   ],
   // another_list_placeholder: ["Option X", "Option Y"],
   // constraints: ["Heritage Overlay", "Flood Zone", "Vegetation Protection"], // Example
+};
+
+export const PREDEFINED_CHOICE_OPTIONS = {
+  // Example: Add your known choice placeholder names and their options here
+  // project_status: ["On Track", "At Risk", "Delayed"],
+  // approval_status: ["Approved", "Pending Review", "Rejected"],
+  PD_or_Full_PP_or_House_holder: ["PD", "Full PP", "House holder"],
 };

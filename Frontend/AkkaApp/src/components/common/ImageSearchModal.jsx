@@ -163,7 +163,11 @@ function ImageSearchModal({ isOpen, onClose, onImageSelect }) {
                   className="p-2.5 bg-teal-600 text-white rounded-md hover:bg-teal-700 disabled:bg-gray-400 transition"
                   aria-label="Search images" // Good: Accessibility
                 >
-                  {searchStatus === "loading" ? <Spinner /> : <SearchIcon />}
+                  {searchStatus === "loading" ? (
+                    <Spinner inline={true} className="h-6 w-6" />
+                  ) : (
+                    <SearchIcon />
+                  )}
                 </button>
               </form>
 
@@ -216,7 +220,7 @@ function ImageSearchModal({ isOpen, onClose, onImageSelect }) {
               >
                 {uploadStatus === "uploading" && (
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <Spinner />
+                    <Spinner inline={true} className="h-5 w-5" />
                   </div>
                 )}
                 <span

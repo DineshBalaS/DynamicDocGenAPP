@@ -1026,3 +1026,469 @@ The implementation relies on the custom `useNavigationBlocker` hook, which lever
 ### V. Conclusion
 
 The feature is implemented correctly and is production-ready. The state-first approach (setting a flag, then navigating in an effect) is robust and correctly handles the component lifecycle and router-blocking race conditions.
+
+
+Journey 1: The "In-Place Edit" (Quick Fixes)
+Scenario: The user is on the ReviewPage and notices a typo in the "Client Name" and wants to change the "Company Logo".
+
+Part A: Editing a Text Field
+Start Edit: The user sees "Client Name: Acme Corp" but it should be "Acme Inc.". They click the small "Edit" icon next to that row.
+
+Enter Edit Mode:
+
+Frontend: The read-only text "Acme Corp" instantly transforms into an active text input field, pre-filled with "Acme Corp".
+
+Simultaneously, two new buttons, "Update" and "Cancel", appear in that row.
+
+The main "Generate Presentation" button at the bottom of the page becomes disabled (grayed out) to prevent generation during an edit.
+
+Make Change: The user types "Acme Inc." into the input field.
+
+Confirm Change: The user clicks the "Update" button.
+
+Save State:
+
+Frontend: The "Update" and "Cancel" buttons disappear. The input field reverts to read-only text, now displaying "Acme Inc."
+
+The page's internal data (formData state) is updated with the new value.
+
+This new data is saved to sessionStorage to keep the "memory" feature in sync.
+
+The "Generate Presentation" button becomes enabled again.
+
+Backend: No backend call is made. This is a 100% client-side operation.
+
+Part B: Editing an Image Field
+Start Edit: The user clicks the "Edit" icon next to the "Company Logo" image preview.
+
+Enter Edit Mode:
+
+
+Frontend: An image upload modal immediately opens, showing the ImageUploader component (with its "Upload" and "Search" options).
+
+The "Generate Presentation" button is disabled.
+
+Make Change: The user searches for a new logo, selects it, and clicks "Confirm and Upload" in the modal.
+
+Save State:
+
+
+Backend: The frontend sends the new image to the POST /api/assets/upload endpoint, which saves it to S3 and returns a new s3_key.
+
+
+Frontend:
+
+The modal closes.
+
+The ReviewPage receives the new s3_key and updates its formData state.
+
+This new data is saved to sessionStorage.
+
+The image preview on the ReviewPage refreshes to show the new logo.
+
+The "Generate Presentation" button is re-enabled.
+
+Part C: Canceling an Edit
+Start Edit: The user clicks the "Edit" icon next to "Client Name."
+
+Make Change... or Not: The user types "asdf..." and then realizes they made a mistake.
+
+Cancel: The user clicks the "Cancel" button (or presses the Esc key).
+
+Revert State:
+
+Frontend: The "Update" and "Cancel" buttons disappear. The input field reverts to its original read-only text, "Acme Corp".
+
+The component's state is not changed.
+
+The "Generate Presentation" button is re-enabled.
+
+Journey 2: The "Edit All" (Major Changes)
+Scenario: The user is on the ReviewPage and realizes they need to change three text fields and add two more list items. The "In-Place Edit" would be too slow.
+
+Start Edit: The user clicks the "Edit All" button (this button has replaced the "← Back to Form" button).
+
+Navigate Back:
+
+Frontend: The app navigates the user back to the DataEntryPage for this template (e.g., /generate/123).
+
+This is a "safe" navigation, so the navigation blocker is not triggered.
+
+Reload Form with Data:
+
+Frontend (DataEntryPage): The page loads. Its useEffect hook runs and finds the existing data in sessionStorage.
+
+The entire form is repopulated with all the data the user had previously entered (text, lists, and image previews are all restored).
+
+Make Changes: The user is now on the familiar full-page form. They edit the three text fields and add their two new items to the list component.
+
+Return to Review: The user clicks the "Review and Generate" button.
+
+Save and Navigate:
+
+Frontend (DataEntryPage): The component saves all the new data to sessionStorage and navigates the user back to the ReviewPage.
+
+Final Confirmation:
+
+Frontend (ReviewPage): The page loads, reads the updated data from sessionStorage, and now displays all the corrected information.
+
+User: The user confirms everything is perfect and clicks "Generate Presentation".
+
+## Code Report: Form Session Memory & In-Place Edit Feature
+Date: November 1, 2025
+
+1. Overview
+This report details the implementation of two major frontend features:
+
+Form Session Memory: A new mechanism to persist user data on the DataEntryPage and ReviewPage. This solves the critical bug where users would lose all their data (including text and image uploads) upon page refresh or navigation.
+
+In-Place Editing: A new feature on the ReviewPage that allows users to edit individual fields one by one (via modals or in-line) without having to return to the full form.
+
+The core of this solution was to stop passing invalid blob: URLs and instead use s3_keys as the single source of truth, with a new backend endpoint to securely fetch viewable URLs.
+
+2. New Architectural Additions
+To support these features in a robust and secure way, several new files were added:
+
+Backend Endpoint (app/api/routes.py)
+
+GET /api/assets/view-url: A new endpoint was added to securely generate an S3 pre-signed URL for a given s3_key.
+
+Security: This endpoint validates that the requested key must start with temp/ to prevent unauthorized access to other files in the S3 bucket.
+
+Frontend API Service (src/api/templateService.js)
+
+getAssetViewUrl(key): A new function was added to call the /api/assets/view-url endpoint, providing a clean way for frontend components to fetch secure URLs.
+
+New Frontend Components & Hooks
+
+src/components/common/S3Image.jsx: A new "smart" component that takes an s3Key as a prop. It handles its own loading, error, and success states by fetching its viewable URL from the backend via getAssetViewUrl.
+
+src/hooks/useReviewPageEditor.js: A new hook that manages the global edit state of the ReviewPage, ensuring only one row can be edited at a time and disabling other UI elements.
+
+src/components/common/EditableReviewRow.jsx: A new "smart row" component for the ReviewPage. It renders the read-only view (using <S3Image />) and conditionally renders the correct edit UI (a text input or a modal) when the "Edit" button is clicked.
+
+3. Modifications to Existing Files
+src/pages/DataEntryPage.jsx
+
+Removed the imagePreviews state. The formData state, which stores s3_keys for images, is now the single source of truth.
+
+fetchDetails was updated to load data from sessionStorage on mount. It validates the templateId in the session against the URL templateId to prevent data from one template leaking into another.
+
+A useEffect hook was added to save formData and template to sessionStorage on every change, ensuring the session is always up-to-date.
+
+handleImageUploadSuccess was simplified to only save the s3_key to formData.
+
+The ImageUploader component prop was updated to pass initialS3Key={formData[ph.name]} instead of the invalid initialPreviewUrl.
+
+src/pages/ReviewPage.jsx
+
+Critical Bug Fix: Corrected a React "Rules of Hooks" violation by moving useNavigationBlocker and the navigation useEffect to the top level of the component, preventing conditional hook calls.
+
+The useEffect data fetch was refactored to load all data from sessionStorage instead of location.state, making the page fully refresh-proof.
+
+The imagePreviews state was removed.
+
+The render logic was replaced with a map that uses the new <EditableReviewRow /> component for each placeholder.
+
+Added the handleUpdateItem function, which is called by EditableReviewRow to update both the component state and sessionStorage.
+
+The "Back to Form" button was renamed to "Edit All".
+
+The "Generate Presentation" button is now correctly disabled via the isEditing flag from the useReviewPageEditor hook.
+
+src/components/common/ImageUploader.jsx
+
+The useEffect hook that runs on mount now correctly uses the initialS3Key prop to call getAssetViewUrl and fetch a secure preview URL.
+
+handleFileSelect and handleModalImageSelect were updated to only call onUploadSuccess with the s3_key, removing the temporary blob: URL.
+
+src/components/templates/TemplateCard.jsx
+
+An onClick handler was added to the "Use Template" <Link>.
+
+This handler calls sessionStorage.removeItem(DATA_ENTRY_SESSION_KEY), ensuring every new session starts with a fresh, empty form.
+
+src/pages/DownloadPage.jsx
+
+This file was modified to also call sessionStorage.removeItem(DATA_ENTRY_SESSION_KEY) when generation begins, clearing the form memory after a successful submission.
+
+src/components/common/MultiTextInput.jsx & CheckboxGroupWithOther.jsx
+
+Minor logic bugs were fixed in the onChange handlers to prevent inputs from disappearing or behaving inconsistently while the user was typing.
+
+4. Key Bugs Resolved
+net::ERR_FILE_NOT_FOUND (Broken Images): FIXED. This was the most critical bug. It was resolved by completely removing the blob: URL logic and using the s3_key as the single source of truth, with previews rendered via the new S3Image component.
+
+Form Data Lost on Refresh/Navigation: FIXED. All form data is now securely persisted in sessionStorage, providing a seamless user experience when navigating or refreshing.
+
+React Crash (Rules of Hooks Violation): FIXED. The white screen crash on the ReviewPage was resolved by moving all hooks to the top level of the component.
+
+UX Bugs: Fixed minor but annoying bugs in list and checkbox components that caused jarring behavior during user input.
+
+Radio Button addition:- 
+
+Phase 1: Backend Update (The "Engine")
+Goal: Teach the backend to understand and generate the new placeholder. This is a very minor change.
+
+
+File to Modify: Backend/app/services/pptx_service.py 
+
+Action:
+
+
+No change needed for extract_placeholders(): Your current regex re.compile(r'\{\{(?:(\w+):)?(\w+)\}\}')  is already smart enough. It will see {{choice:project_status}} and correctly identify it as {"name": "project_status", "type": "choice"}.
+
+Modify generate_presentation(): We just need to tell the "text replacement" logic to also handle the "choice" type.
+
+Find the line that defines text_pattern:
+
+
+text_pattern = re.compile(r'\{\{(?:text:)?(\w+)\}\}') 
+
+Change it to include choice: as a valid prefix: text_pattern = re.compile(r'\{\{(?:text:|choice:)?(\w+)\}\}')
+
+Result: The backend is now ready. The generate_presentation function will see the {{choice:project_status}} placeholder, find the project_status key in your data (e.g., "On Track"), and perform a simple text replacement, just like a normal {{text}} placeholder.
+
+Phase 2: Frontend Configuration (The "Data")
+Goal: Define the options that will appear for your new radio button groups.
+
+
+File to Modify: Frontend/src/constants/listChoices.js 
+
+Action:
+
+At the end of the file, add a new exported constant specifically for your "choice" options. This keeps it separate and clean from your "list" (checkbox) options.
+
+Add your new placeholder names and their options here. For example:
+
+JavaScript
+
+// ... (existing PREDEFINED_LIST_CHOICES) ...
+
+export const PREDEFINED_CHOICE_OPTIONS = {
+  project_status: ["On Track", "At Risk", "Delayed"],
+  another_choice: ["Option A", "Option B", "Option C"],
+};
+Result: Your frontend now knows what options to show for {{choice:project_status}}.
+
+Phase 3: Frontend UI (The "View")
+Goal: Create the new radio button component and render it on the Data Entry & Review pages.
+
+New File: Frontend/src/components/common/RadioButtonGroupWithOther.jsx
+
+Action: Create this new component.
+
+
+Plan: It will be very similar to your existing CheckboxGroupWithOther.jsx  but modified for single-select (radio buttons).
+
+It will accept placeholderName, choices, value (which will be a single string, e.g., "On Track"), and onChange.
+
+It will render <input type="radio"> for each item in choices.
+
+It will include an "Other" radio button.
+
+It will have its own local state to manage the "Other" text input's visibility and value.
+
+When any standard radio is clicked, it will call onChange(placeholderName, "Selected Choice").
+
+When the "Other" radio is clicked or its text is changed, it will call onChange(placeholderName, "Custom Other Text").
+
+Per your requirement, all options will be unselected by default if value is "".
+
+
+File to Modify: Frontend/src/pages/DataEntryPage.jsx 
+
+Action: Teach the form to render your new component.
+
+Plan:
+
+Import your new RadioButtonGroupWithOther component and the PREDEFINED_CHOICE_OPTIONS constant.
+
+
+Modify fetchDetails: In the reduce function that builds initialData, make sure choice types are initialized to an empty string "" (just like "text" and "image" types).
+
+
+Modify Form Rendering: In the .map() loop that renders the form fields, find the ph.type === "list" block.
+
+Add a new else if (ph.type === "choice") block.
+
+Inside this block:
+
+Check if PREDEFINED_CHOICE_OPTIONS[ph.name] exists.
+
+If YES: Render your new <RadioButtonGroupWithOther /> component.
+
+
+If NO: Render a standard <input type="text" ... />. This perfectly handles your fallback requirement.
+
+
+Add Handler: Create a new handler function handleRadioChange (or just reuse handleInputChange ) to update the formData state with the single string value.
+
+
+File to Modify: Frontend/src/components/common/EditableReviewRow.jsx 
+
+Action: Teach the "Review Page" how to display and edit the new "choice" type.
+
+Plan:
+
+Read-Only View: No change needed. Since the value is just a string (e.g., "On Track"), the existing renderReadOnlyView logic for "text" types will display it perfectly.
+
+
+Edit View (Your Requirement): We will use a modal, as it's the most robust and consistent UI pattern you already use for images and lists.
+
+Modify handleEditClick: Add "choice" to the condition that opens the modal.
+
+Change this line:
+
+
+if (type === "image" || type === "list") { 
+
+To this: if (type === "image" || type === "list" || type === "choice") {
+
+Modify renderModalEditView:
+
+Import RadioButtonGroupWithOther and PREDEFINED_CHOICE_OPTIONS.
+
+Add an else if (type === "choice") block inside the modal's render logic.
+
+Inside this block: Just like on the DataEntryPage, check if PREDEFINED_CHOICE_OPTIONS[placeholderKey] exists.
+
+If YES: Render <RadioButtonGroupWithOther />.
+
+If NO: Render a simple <input type="text" ... />.
+
+Wire these components up to currentValue and handleListChange (which can be renamed to handleModalInputChange since it just calls setCurrentValue).
+
+## Code Report: 'Choice' Placeholder (Radio Button) Feature
+
+**Date:** November 6, 2025
+**Feature:** Implement new `{{choice:name}}` placeholder type.
+**Goal:** Render predefined radio button groups (with an "Other" option) on the data entry page, or a fallback text input if no choices are defined. Ensure this is supported in both the data entry form and the review page's "in-place edit" modal.
+
+---
+
+### I. Backend Modifications (`app/services/pptx_service.py`)
+
+* **File:** `app/services/pptx_service.py`
+* **Change 1: `extract_placeholders`**
+    * **Status:** ✅ No change needed.
+    * **Reason:** The existing regex `re.compile(r'\{\{(?:(\w+):)?(\w+)\}\}')` correctly identifies `{{choice:name}}` and parses it as `{"name": "name", "type": "choice"}`.
+* **Change 2: `generate_presentation` (Text Replacement Logic)**
+    * **Status:** ✅ Modified.
+    * **Reason:** Debugging revealed that placeholders (e.g., `{{choice:PD_or_Full_PP_or_House_holder}}`) were split across multiple text runs in the PPTX XML, causing formatting issues.
+    * **Implementation:**
+        1.  Replaced the simple "Run-by-Run" logic with a robust **Hybrid Method**.
+        2.  **Attempt 1:** The code first loops through each `run` individually. If a full placeholder is found in a single run, it's replaced, preserving all mixed formatting.
+        3.  **Attempt 2 (Fallback):** If no replacements were made (indicated by `was_run_replacement_made = False`) but the paragraph *still* contains a placeholder (`'{{' in para.text`), the code correctly identifies it as a "split-run" placeholder.
+        4.  It then falls back to the "Whole Paragraph" method: it saves the font from the first run, rebuilds the full text, replaces all placeholders, and writes the new text into a single, cleared run. This ensures all placeholders are replaced, even if it means sacrificing mixed formatting in that specific paragraph.
+
+---
+
+### II. Frontend Modifications
+
+#### 1. Configuration (`src/constants/listChoices.js`)
+
+* **Status:** ✅ Modified.
+* **Change:** Added a new exported constant `PREDEFINED_CHOICE_OPTIONS` to store the options for `choice` placeholders, keeping them separate from the `list` (checkbox) options.
+
+#### 2. New Component (`src/components/common/RadioButtonGroupWithOther.jsx`)
+
+* **Status:** ✅ New File.
+* [cite_start]**Purpose:** Created a new component modeled after `CheckboxGroupWithOther.jsx` [cite: 3521-3543] but for single-select (radio buttons).
+* **Logic:**
+    * Manages its own state for `otherText` and `isOtherSelected`.
+    * Includes an `useEffect` hook to sync its internal state with the parent `value` prop, correctly handling "Other" values vs. standard choices.
+    * Provides handlers (`handleStandardChange`, `handleOtherRadioChange`, `handleOtherTextChange`) to manage user input and call the parent `onChange` prop with a single string value.
+* **Bug Fix:** Resolved a flicker bug by updating the `useEffect` logic to correctly handle the `!value` (empty) state, preventing it from incorrectly setting `isOtherSelected(false)` when the "Other" button was just clicked.
+
+#### 3. Data Entry (`src/pages/DataEntryPage.jsx`)
+
+* **Status:** ✅ Modified.
+* **Changes:**
+    1.  **Imports:** Imported `RadioButtonGroupWithOther` and `PREDEFINED_CHOICE_OPTIONS`.
+    2.  **State Init:** Updated `fetchDetails` to initialize `choice` types to `""` (empty string) in `initialData`, just like `text` types.
+    3.  **Handler:** Added `handleSimpleChange` to accept the single string value from the new radio component and update `formData`.
+    4.  **Rendering:** Added an `else if (ph.type === "choice")` block to the form's render map.
+        * If `PREDEFINED_CHOICE_OPTIONS[ph.name]` exists, it renders `<RadioButtonGroupWithOther />`.
+        * If not, it correctly renders a fallback `<input type="text" />`.
+
+#### 4. Review & Edit (`src/components/common/EditableReviewRow.jsx`)
+
+* **Status:** ✅ Modified.
+* **Changes:**
+    1.  **Imports:** Imported `RadioButtonGroupWithOther` and `PREDEFINED_CHOICE_OPTIONS`.
+    2.  **Read-Only View:** No change needed; the simple string `value` is correctly rendered by the "text" logic.
+    3.  **Edit Handler:** Updated `handleEditClick` to include `"choice"` in the condition to open the modal.
+    4.  **Modal View:** Updated `renderModalEditView` to include an `else if (type === "choice")` block, which (like the Data Entry page) renders either `<RadioButtonGroupWithOther />` or a fallback `<input type="text" />`.
+    5.  **Modal Render Bug Fix:** The final `return` statement's JSX was updated to include the "choice" type, fixing a bug where the modal would not render.
+        * **From:** `{(type === "image" || type === "list") && renderModalEditView()}`
+        * **To:** `{(type === "image" || type === "list" || type === "choice") && renderModalEditView()}`
+
+🗺️ Latest User Journey: Editing a Template
+This journey details the "Happy Path" for a successful edit, as well as the specific error cases and edge cases you defined.
+
+Part 1: The "Happy Path" (Successful Edit)
+
+Start (Dashboard): The user is on the main dashboard (DashboardPage.jsx). They see a grid of their active templates.
+
+
+Action: The user hovers over a TemplateCard. They click the "kebab" menu (three dots) and select the "Edit" option .
+
+
+
+Frontend Response (Modal): A modal window appears (Modal.jsx). It displays a small form with two fields:
+
+Name: A text input, pre-filled with the template's current name.
+
+Description: A text area, pre-filled with the template's current description (or an empty string).
+
+User Input: The user changes the Name (e.g., to "Quarterly Review") and adds a Description (e.g., "Standard template for all Q1-Q4 client-facing reports").
+
+Saving: The user clicks the "Save" button in the modal.
+
+Full-Stack Process:
+
+Frontend: The browser sends a PUT request to a new backend endpoint (e.g., PUT /api/templates/123) with the new name and description.
+
+
+Backend: The backend API (routes.py) receives the request .
+
+It performs validation and confirms the name is not empty (as you requested).
+
+It queries the database to ensure no other template is already using that name (as you requested).
+
+Finding no errors, it runs an UPDATE command on the templates table in the PostgreSQL database, saving the new name and description.
+
+Frontend: The frontend receives a success (e.g., 200 OK) response. The modal closes, and a success toast appears ("Template updated").
+
+Final Result (Dashboard): The user is back on the dashboard. The TemplateCard they just edited has instantly updated.
+
+The title now shows "Quarterly Review".
+
+The description below the title now shows "Standard template for all Q1-Q4..." but is truncated with an ellipsis (...) to prevent overflowing the card, as per your requirement.
+
+Part 2: Error & Edge Scenarios (Based on Your Rules)
+Scenario A: User saves with an EMPTY name.
+
+Action: The user deletes all text from the "Name" field and clicks "Save".
+
+Result (Rule 3): The save is prevented. The modal remains open, and a validation error appears directly within the modal (e.g., "Name cannot be empty"). No API call is made.
+
+Scenario B: User saves with a DUPLICATE name.
+
+Action: The user renames Template A to "Old Template Name", which is already used by Template B, and clicks "Save".
+
+Result (Rule 2): The frontend sends the PUT request. The backend detects the name conflict and returns an error (e.g., 409 Conflict). The modal remains open, and an error message appears: "A template with this name already exists."
+
+Scenario C: User CANCELS an edit.
+
+Action: The user types a new name and description, but then clicks the "Cancel" button or clicks outside the modal.
+
+Result (Rule 4): The modal immediately closes. No warning is shown, and the changes are discarded.
+
+Scenario D (Excluded): User is in the TRASH.
+
+
+Action: The user navigates to the /trash page (TrashPage.jsx).
+
+Result (Rule 5): The user hovers over a template card. The kebab menu (and therefore the "Edit" button) does not appear. The TemplateCard component, using its isTrashContext prop , only shows the "Restore" action. Editing is impossible from this page.

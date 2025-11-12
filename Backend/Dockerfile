@@ -29,4 +29,4 @@ EXPOSE 8000
 #    - Use Gunicorn, a production-ready WSGI server, to run the app.
 #    - 'main:app' tells Gunicorn to look in the 'main.py' file for a Flask app instance named 'app'.
 #    - We bind it to 0.0.0.0 so it can accept connections from outside the container.
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "main:app"]
+CMD ["sh", "-c", "python app/database/db_setup.py && gunicorn --bind 0.0.0.0:8000 main:app"]

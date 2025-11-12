@@ -27,7 +27,7 @@ def get_templates():
         db = get_db()
         cur = db.cursor()
         
-        cur.execute("SELECT id, name, created_at FROM templates WHERE deleted_at IS NULL ORDER BY created_at DESC;")
+        cur.execute("SELECT id, name, created_at, description FROM templates WHERE deleted_at IS NULL ORDER BY created_at DESC;")
         
         columns = [desc[0] for desc in cur.description]
         templates = [dict(zip(columns, row)) for row in cur.fetchall()]
@@ -198,9 +198,6 @@ def delete_template(template_id):
                 "UPDATE templates SET deleted_at = CURRENT_TIMESTAMP, s3_key = %s WHERE id = %s",
                 (new_s3_key_in_trash, template_id)
             )
-
-            # Step 4: update the timestamp in the database
-            cur.execute("UPDATE templates SET deleted_at = CURRENT_TIMESTAMP WHERE id = %s", (template_id,))
             
             # Step 5: Commit Transaction
             db.commit()
@@ -467,4 +464,92 @@ def restore_template(template_id):
         db.rollback()
         current_app.logger.error(f"Unexpected error restoring template {template_id}: {e}")
         return jsonify({"error": "An unexpected server error occurred."}), 500
+    
+@api_bp.route('/assets/view-url', methods=['GET'])
+def get_asset_view_url():
+    """
+    Generates a pre-signed URL for viewing a temporary asset from S3.
+    This is used to securely display image previews on the frontend.
+    """
+    # 1. Get and validate the 'key' query parameter
+    s3_key = request.args.get('key')
+    if not s3_key:
+        current_app.logger.warning("[GET /assets/view-url] Missing 'key' query parameter.")
+        return jsonify({"error": "Missing 'key' query parameter"}), 400
+
+    # 2. **Security Check**: Only allow generation for keys in the 'temp/' directory.
+    #    This prevents users from trying to guess keys for other files (like templates).
+    if not s3_key.startswith('temp/'):
+        current_app.logger.warning(f"[GET /assets/view-url] Access denied for non-temp key: {s3_key}")
+        return jsonify({"error": "Access denied"}), 403 # 403 Forbidden
+
+    try:
+        # 3. Get S3 service and generate the URL
+        s3 = get_s3()
+        
+        # Call the method from s3_service.py
+        url = s3.create_presigned_url_for_download(s3_key) 
+        
+        # 4. Success Response
+        current_app.logger.info(f"[GET /assets/view-url] Generated URL for key: {s3_key}")
+        return jsonify({"url": url}), 200
+
+    except S3Error as e:
+        current_app.logger.error(f"[GET /assets/view-url] S3Error for key {s3_key}: {e}")
+        return jsonify({"error": "Failed to generate viewable URL."}), 500
+    except Exception as e:
+        current_app.logger.error(f"[GET /assets/view-url] Unexpected error for key {s3_key}: {e}")
+        return jsonify({"error": "An unexpected server error occurred."}), 500
+
+@api_bp.route('/templates/<int:template_id>', methods=['PUT'])
+def update_template(template_id):
+    """
+    Endpoint to update a template's name and description.
+    """
+    data = request.get_json()
+    new_name = data.get('name', '').strip()
+    new_description = data.get('description', '') # Get description, allow it to be empty or null
+
+    # Rule 3: Validate for empty name
+    if not new_name:
+        return jsonify({"error": "Template name cannot be empty"}), 400
+
+    db = get_db()
+    try:
+        with db.cursor() as cur:
+            # Rule 2: Check for duplicate name
+            cur.execute(
+                "SELECT id FROM templates WHERE name = %s AND id != %s AND deleted_at IS NULL",
+                (new_name, template_id)
+            )
+            if cur.fetchone():
+                return jsonify({"error": "A template with this name already exists."}), 409 # 409 Conflict
+
+            # If validation passes, update the template
+            update_query = """
+                UPDATE templates
+                SET name = %s, description = %s
+                WHERE id = %s AND deleted_at IS NULL
+                RETURNING id, name, created_at, placeholders, description;
+            """
+            cur.execute(update_query, (new_name, new_description, template_id))
+            
+            updated_record = cur.fetchone()
+            
+            if updated_record is None:
+                # This means the template_id didn't exist or was already deleted
+                return jsonify({"error": "Template not found."}), 404
+
+            db.commit()
+
+            # Format the response
+            columns = [desc[0] for desc in cur.description]
+            updated_template = dict(zip(columns, updated_record))
+            
+            return jsonify(updated_template), 200
+
+    except (psycopg2.DatabaseError, Exception) as e:
+        db.rollback()
+        current_app.logger.error(f"Error updating template {template_id}: {e}")
+        return jsonify({"error": "An internal error occurred while updating the template."}), 500
     

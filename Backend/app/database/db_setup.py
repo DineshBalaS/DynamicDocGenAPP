@@ -32,6 +32,13 @@ def create_tables():
         
         cur.execute(create_table_command)
         
+        # This makes the script safe to re-run (idempotent).
+        alter_table_command = """
+        ALTER TABLE templates
+        ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE DEFAULT NULL;
+        """
+        cur.execute(alter_table_command)
+        
         # Commit the changes
         conn.commit()
         print("Table 'templates' created successfully or already exists.")
