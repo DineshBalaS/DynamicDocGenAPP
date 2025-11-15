@@ -1,11 +1,11 @@
 // src/pages/TrashPage.jsx
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { getTrashedTemplates, restoreTemplate } from '../api/templateService';
-import TemplateCard from '../components/templates/TemplateCard';
-import Spinner from '../components/ui/spinner';
-import ErrorState from '../components/common/ErrorState';
-import Toast from '../components/ui/Toast';
+import React, { useState, useEffect, useCallback } from "react";
+import { getTrashedTemplates, restoreTemplate } from "../api/templateService";
+import TemplateCard from "../components/templates/TemplateCard";
+import Spinner from "../components/ui/spinner";
+import ErrorState from "../components/common/ErrorState";
+import Toast from "../components/ui/Toast";
 
 // Simple component for the empty trash message
 const EmptyTrashState = () => (
@@ -32,23 +32,22 @@ const EmptyTrashState = () => (
   </div>
 );
 
-
 function TrashPage() {
   const [trashedTemplates, setTrashedTemplates] = useState([]);
-  const [status, setStatus] = useState('loading'); // 'loading', 'success', 'error'
+  const [status, setStatus] = useState("loading"); // 'loading', 'success', 'error'
   const [toastMessage, setToastMessage] = useState(null);
-  const [toastType, setToastType] = useState('success'); // 'success' or 'error'
+  const [toastType, setToastType] = useState("success"); // 'success' or 'error'
 
   // Fetch trashed templates function
   const fetchTrashedTemplates = useCallback(async () => {
-    setStatus('loading');
+    setStatus("loading");
     try {
       const data = await getTrashedTemplates();
       setTrashedTemplates(data);
-      setStatus('success');
+      setStatus("success");
     } catch (error) {
       console.error(error);
-      setStatus('error');
+      setStatus("error");
     }
   }, []);
 
@@ -64,24 +63,49 @@ function TrashPage() {
     try {
       await restoreTemplate(template.id);
       // Optimistically remove from local state for instant UI update
-      setTrashedTemplates(currentTemplates => currentTemplates.filter(t => t.id !== template.id));
+      setTrashedTemplates((currentTemplates) =>
+        currentTemplates.filter((t) => t.id !== template.id)
+      );
       setToastMessage(`Template "${template.name}" restored successfully!`);
-      setToastType('success');
+      setToastType("success");
     } catch (error) {
-      setToastMessage(`Failed to restore template "${template.name}".`);
-      setToastType('error');
-      console.error(error);
+      console.error("Restore failed:", error.response || error);
+      // Check if this is the '410 Gone' error from the backend
+      if (error.response && error.response.status === 410) {
+        // The file was permanently deleted.
+        setToastMessage(
+          error.response.data?.error ||
+            "Template permanently deleted and removed from trash."
+        );
+        setToastType("error");
+        // Also remove it from the UI, as it's now gone from the DB
+        setTrashedTemplates((currentTemplates) =>
+          currentTemplates.filter((t) => t.id !== template.id)
+        );
+      } else {
+        // Handle other errors (e.g., 500, network error)
+        setToastMessage(
+          error.response?.data?.error ||
+            `Failed to restore template "${template.name}". Please try again.`
+        );
+        setToastType("error");
+      }
     }
   };
 
   // Render content based on status
   const renderContent = () => {
     switch (status) {
-      case 'loading':
+      case "loading":
         return <Spinner />;
-      case 'error':
-        return <ErrorState onRetry={fetchTrashedTemplates} message="Could not load trashed items." />;
-      case 'success':
+      case "error":
+        return (
+          <ErrorState
+            onRetry={fetchTrashedTemplates}
+            message="Could not load trashed items."
+          />
+        );
+      case "success":
         if (trashedTemplates.length === 0) {
           return <EmptyTrashState />;
         }

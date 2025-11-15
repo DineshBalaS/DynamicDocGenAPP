@@ -1492,3 +1492,169 @@ Scenario D (Excluded): User is in the TRASH.
 Action: The user navigates to the /trash page (TrashPage.jsx).
 
 Result (Rule 5): The user hovers over a template card. The kebab menu (and therefore the "Edit" button) does not appear. The TemplateCard component, using its isTrashContext prop , only shows the "Restore" action. Editing is impossible from this page.
+
+## Feature Documentation: Trash S3/DB Synchronization
+
+### 1. Feature
+Trash Feature: S3/DB Synchronization ("Just-in-Time Gateway")
+
+### 2. Objective
+[cite_start]To resolve the desynchronization problem between the PostgreSQL database and the S3 bucket's 30-day lifecycle rule[cite: 907, 908, 909]. [cite_start]This plan ensures a user cannot restore an "orphaned" database record whose corresponding S3 file has already been permanently deleted, preventing a future `500 Internal Server Error` during the generation step[cite: 3535].
+
+### 3. Problem Statement
+* [cite_start]The `TrashPage.jsx` [cite: 213] [cite_start]populates its list of items by calling `GET /api/templates/trash`[cite: 202, 3586].
+* [cite_start]This backend endpoint queries the PostgreSQL database for all records with a non-NULL `deleted_at` timestamp[cite: 3587].
+* [cite_start]An independent S3 Lifecycle Policy permanently deletes files in the `trash/` prefix after 30 days[cite: 907, 908, 909].
+* **Conflict:** The database can (and will) contain records for templates that no longer exist in S3. [cite_start]If a user restores this "orphaned" record, the `POST /api/templates/<id>/restore` [cite: 203] [cite_start]call will *succeed* (as it only updates the DB [cite: 3580][cite_start]), but the application will fail with an error when the user later attempts to `POST /api/generate`[cite: 3535].
+
+### 4. Proposed Solution
+Implement a "Just-in-Time Gateway" check on the **restore endpoint**.
+
+[cite_start]The `POST /api/templates/<id>/restore` [cite: 203] route will be modified. Before restoring the item in the database, it will first make a quick check to S3 to verify the file still exists.
+
+* If the file **exists**, the restore proceeds normally.
+* If the file **does not exist** (i.e., it was purged by the S3 rule), the backend will instead *delete* the orphaned database record and return a specific `410 Gone` error to the frontend, allowing the UI to handle the cleanup gracefully.
+
+### 5. Implementation Plan
+
+#### Backend (`app/services/s3_service.py`)
+1.  **Create Helper Method:** Add a new, reusable method to the `S3Service` class.
+    * **Method:** `def file_exists(self, s3_key: str) -> bool:`
+    * **Logic:**
+        * Use `self.s3_client.head_object(Bucket=self.bucket_name, Key=s3_key)`.
+        * Wrap this call in a `try...except ClientError as e`.
+        * If `e.response['Error']['Code'] == '404'`, return `False`.
+        * If no exception, return `True`.
+        * If another `ClientError`, re-raise it.
+
+#### Backend (`app/api/routes.py`)
+1.  [cite_start]**Modify `restore_template` Route:** Update the logic for `POST /api/templates/<int:template_id>/restore`[cite: 203, 3577].
+    * [cite_start]**Step 1:** Fetch the template from the DB `WHERE id = %s AND deleted_at IS NOT NULL`[cite: 3579]. If not found, return `404` as usual.
+    * **Step 2:** Get the `s3_key` from the template record.
+    * **Step 3 (The Gateway):** Call `s3_service.file_exists(s3_key)`.
+    * **Step 4 (If `False`):** The file is gone.
+        * Run `DELETE FROM templates WHERE id = %s` to clean the orphaned record.
+        * `db.commit()`.
+        * Return `jsonify({"error": "This template has been permanently deleted."}), 410`.
+    * **Step 5 (If `True`):** The file exists.
+        * [cite_start]Proceed with the *original* restore logic: `UPDATE templates SET deleted_at = NULL WHERE id = %s`[cite: 3580].
+        * `db.commit()`.
+        * [cite_start]Return `jsonify({"message": "Template restored successfully."}), 200`[cite: 3583].
+    * Ensure all logic is wrapped in a `try...except...finally` block to handle DB rollbacks and close the cursor.
+
+#### Frontend (`src/pages/TrashPage.jsx`)
+1.  [cite_start]**Modify `handleRestore`:** Update the `catch` block in the `handleRestore` function[cite: 219].
+    * [cite_start]The `restoreTemplate(templateId)` [cite: 207] service call needs to handle the new `410` error.
+    * **Logic:**
+        ```javascript
+        try {
+          await restoreTemplate(templateId);
+          // ... (existing success logic: toast, optimistic removal)
+        } catch (error) {
+          if (error.response && error.response.status === 410) {
+            // Case 1: File is permanently gone
+            setToastMessage("Template permanently deleted and removed from trash.");
+            setToastType("error");
+            // Still remove from UI, as it's now gone from the DB
+            setTrashedTemplates(prev => prev.filter(t => t.id !== templateId));
+          } else {
+            // Case 2: Any other error (e.g., 500)
+            setToastMessage("Failed to restore template. Please try again.");
+            setToastType("error");
+          }
+        }
+        ```
+
+### 6. Acceptance Criteria
+* **AC-1 (Normal Restore):** A user restores a template deleted < 30 days ago. The restore succeeds, and the template moves from `/trash` to the dashboard.
+* **AC-2 (Orphaned Restore):** A user attempts to restore a template deleted > 30 days ago (whose file was purged from S3).
+    * The user clicks "Restore".
+    * The backend returns a `410` error.
+    * The frontend shows an error toast: "Template permanently deleted and removed from trash."
+    * The template card is removed from the `TrashPage` UI.
+    * The template does *not* appear on the `DashboardPage`.  
+
+## Feature Implementation: S3/DB Trash Synchronization
+
+**Date:** 2025-11-15
+**Status:** Implemented & Reviewed
+**Author:** (Your Name) / Gemini
+
+---
+
+### 1. Problem Statement
+
+A desynchronization problem was identified between the application's database and the S3 bucket's trash policy.
+
+* **Database (Source of Truth for UI):** `TrashPage.jsx` lists items by querying the PostgreSQL database for all templates where `deleted_at IS NOT NULL`.
+* **S3 (Source of Truth for Files):** A 30-day S3 Lifecycle Policy permanently deletes files in the `trash/` prefix.
+
+This conflict creates "orphaned" database records—entries in the `templates` table that point to S3 files that no longer exist.
+
+**Original User Impact:** A user could "successfully" restore an orphaned record (a `200 OK` from the backend, as the DB update succeeds). The application would then fail with a `500 Internal Server Error` at the final `generate` step when the backend tried to fetch the non-existent S3 file. This is a poor and confusing user experience.
+
+### 2. Solution: "Just-in-Time Gateway"
+
+The implemented solution intercepts the restore action to validate file existence *before* committing to the restore. This "Just-in-Time Gateway" is placed on the `restore` endpoint, as it's the only point where the desynchronization causes a problem.
+
+**New Logic Flow:**
+When a user calls `POST /api/templates/<id>/restore`:
+
+1.  The backend first queries the database to find the trashed record.
+2.  **Gateway Check:** It then asks the `s3_service` if the corresponding file key (e.g., `trash/some-key.pptx`) still exists in S3.
+3.  **Path A (File Exists):**
+    * The restore proceeds as normal.
+    * The file is moved from `trash/` back to the root in S3.
+    * The database record is updated (`deleted_at = NULL`, `s3_key` is updated).
+    * The backend returns `200 OK`.
+4.  **Path B (File Does Not Exist - 404 from S3):**
+    * The backend identifies this as an orphaned record.
+    * **Self-Healing:** It permanently `DELETE`s the orphaned record from the `templates` table and commits.
+    * The backend returns a `410 Gone` error to the frontend.
+5.  **Frontend Handling:**
+    * The frontend `TrashPage.jsx` catches the `410` error.
+    * It displays a specific error toast: "Template permanently deleted and removed from trash."
+    * It removes the template from its local state, as it no longer exists anywhere.
+
+### 3. File-by-File Implementation Details
+
+#### `backend/app/services/s3_service.py`
+
+* **Added `def file_exists(self, s3_key: str) -> bool:`**
+    * Implemented a new helper method in the `S3Service` class.
+    * Uses `self.s3_client.head_object()` for a lightweight, low-cost metadata check.
+    * Correctly intercepts Boto3's `ClientError`, returning `False` only if the error code is `404`.
+    * Re-raises a custom `S3Error` for all other unexpected errors (e.g., 403 Forbidden), maintaining the service layer's abstraction.
+
+#### `backend/app/api/routes.py`
+
+* **Modified `POST /api/templates/<int:template_id>/restore`**
+    * The endpoint now calls `s3.file_exists(s3_key_in_trash)` *after* fetching the record from the DB but *before* attempting any restore logic.
+    * **If `False`:**
+        * Logs a warning (`current_app.logger.warning(...)`) about the orphaned record.
+        * Executes `DELETE FROM templates WHERE id = %s` to clean the database.
+        * Commits the transaction.
+        * Returns `jsonify({"error": "..."}), 410`.
+    * **If `True`:**
+        * Proceeds with the original restore logic: `s3.restore_file_from_trash()` and `UPDATE templates SET deleted_at = NULL...`.
+        * Commits the transaction.
+        * Returns `200 OK`.
+
+#### `frontend/AkkaApp/src/api/templateService.js`
+
+* **Modified `restoreTemplate(templateId)`**
+    * The `catch` block was changed from `throw new Error(...)` to simply `throw error;`.
+    * This change is critical as it propagates the full Axios error object (including `error.response.status`) to the calling component, rather than hiding it behind a generic `Error`.
+
+#### `frontend/AkkaApp/src/pages/TrashPage.jsx`
+
+* **Modified `handleRestore(template)`**
+    * The `catch (error)` block was upgraded to inspect the error.
+    * Added a specific check: `if (error.response && error.response.status === 410)`.
+    * **If `410`:** Sets a specific error toast ("Template permanently deleted...") and, importantly, still removes the template from the local state (`setTrashedTemplates(...)`) because the backend has confirmed it's gone.
+    * **If `else`:** Handles all other errors by showing a generic "Failed to restore" toast, allowing the user to retry.
+
+### 4. Final User Experience
+
+* **Restore (< 30 Days):** User clicks "Restore," and the template moves from the Trash page to the Dashboard. (No change).
+* **Restore (> 30 Days):** User clicks "Restore" on an item purged by S3. An error toast appears ("Template permanently deleted..."), and the template card disappears from the Trash page. The user is fully protected from future `500` errors.

@@ -433,6 +433,25 @@ def restore_template(template_id):
 
             # Step 2: Restore the file from S3 trash BEFORE updating the database
             s3 = get_s3()
+            
+            # Check if the file still exists in S3 before attempting to restore.
+            if not s3.file_exists(s3_key_in_trash):
+                # The S3 file was permanently deleted (e.g., by lifecycle rule).
+                # The database record is orphaned, so we clean it up.
+                current_app.logger.warning(
+                    f"Orphaned record found: Deleting template {template_id} "
+                    f"(S3 key {s3_key_in_trash} not found)."
+                )
+                
+                # Permanently delete the orphaned database record
+                cur.execute("DELETE FROM templates WHERE id = %s", (template_id,))
+                db.commit()
+                
+                # Return '410 Gone' to inform the UI this is permanent.
+                return jsonify({
+                    "error": "This template has been permanently deleted and can no longer be restored."
+                }), 410
+                
             # This returns the key *without* the 'trash/' prefix
             original_s3_key = s3.restore_file_from_trash(s3_key_in_trash)
 

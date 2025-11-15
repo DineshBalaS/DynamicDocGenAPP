@@ -47,9 +47,7 @@ export const restoreTemplate = async (templateId) => {
       `Failed to restore template ${templateId}:`,
       error.response?.data || error.message
     );
-    throw new Error(
-      error.response?.data?.error || "Failed to restore template."
-    );
+    throw error;
   }
 };
 
