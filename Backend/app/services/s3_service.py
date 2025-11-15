@@ -137,6 +137,37 @@ class S3Service:
         except ClientError as e:
             print(f"S3 Download Error: {e}")
             raise S3Error(f"Failed to download file '{s3_key}' from S3.")
+    
+    def file_exists(self, s3_key: str) -> bool:
+        """
+        Checks if a file exists in the S3 bucket using a lightweight HEAD request.
+
+        Args:
+            s3_key: The unique key of the object in the S3 bucket.
+
+        Returns:
+            True if the file exists, False if it does not (404).
+
+        Raises:
+            S3Error: If any other ClientError occurs (e.g., 403 Forbidden).
+        """
+        try:
+            self.s3_client.head_object(
+                Bucket=self.bucket_name,
+                Key=s3_key
+            )
+            return True
+        except ClientError as e:
+            if e.response['Error']['Code'] == '404':
+                # The file does not exist
+                return False
+            else:
+                # Any other error (403, 500, etc.) is unexpected.
+                # Log it and raise our custom exception.
+                current_app.logger.error(
+                    f"S3 head_object error for key {s3_key}: {e.response['Error']['Message']}"
+                )
+                raise S3Error(f"Error checking file existence: {e.response['Error']['Message']}")
 
 
     def create_presigned_url_for_download(self, s3_key: str) -> str:
